@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole
+// Copyright (c) 2010 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -52,7 +52,7 @@ namespace NUnit.Framework.Internal.Commands
         /// <summary>
         /// Gets the test associated with this command.
         /// </summary>
-        public Test Test { get; private set; }
+        public Test Test { get; }
 
         /// <summary>
         /// Runs the test in a specified context, returning a TestResult.

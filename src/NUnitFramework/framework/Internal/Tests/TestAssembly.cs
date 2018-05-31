@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2010-2017 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,12 +21,13 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using NUnit.Compatibility;
 
-#if PORTABLE
-using Path = NUnit.Framework.Compatibility.Path;
-#endif
+using NUnit.Framework.Interfaces;
 
 namespace NUnit.Framework.Internal
 {
@@ -60,9 +61,22 @@ namespace NUnit.Framework.Internal
         }
 
         /// <summary>
+        /// Copy-constructor style to create a filtered copy of the test assemblies
+        /// test cases
+        /// </summary>
+        /// <param name="assembly"></param>
+        /// <param name="filter"></param>
+        public TestAssembly(TestAssembly assembly, ITestFilter filter)
+            : base(assembly as TestSuite, filter)
+        {
+            this.Name     = assembly.Name;
+            this.Assembly = assembly.Assembly;
+        }
+
+        /// <summary>
         /// Gets the Assembly represented by this instance.
         /// </summary>
-        public Assembly Assembly { get; private set; }
+        public Assembly Assembly { get; }
 
         /// <summary>
         /// Gets the name used for the top-level element in the
@@ -75,5 +89,16 @@ namespace NUnit.Framework.Internal
                 return "Assembly";
             }
         }
+
+        /// <summary>
+        /// Get custom attributes specified on the assembly
+        /// </summary>
+        public override TAttr[] GetCustomAttributes<TAttr>(bool inherit)
+        {
+            return Assembly != null
+                ? Assembly.GetAttributes<TAttr>()
+                : new TAttr[0];
+        }
     }
 }
+

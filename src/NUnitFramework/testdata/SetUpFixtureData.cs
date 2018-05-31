@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -119,15 +119,7 @@ namespace NUnit.TestUtilities
         // Currently, only one fixture uses it, if more use it, they should not be run in parallel.
         // TODO: Create a utility that can be used by multiple fixtures
 
-        private static Queue<string> _events;
-
-        /// <summary>
-        /// Initializes the <see cref="SimpleEventRecorder"/> 'static' class.
-        /// </summary>
-        static SimpleEventRecorder()
-        {
-            _events = new Queue<string>();
-        }
+        private static readonly Queue<string> _events = new Queue<string>();
 
         /// <summary>
         /// Registers an event.

@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,6 @@ using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.TestUtilities;
 
-#if !SILVERLIGHT && !NETCF && !PORTABLE
 namespace NUnitLite.Tests
 {
     public class TeamCityEventListenerTests
@@ -38,7 +37,7 @@ namespace NUnitLite.Tests
         private TeamCityEventListener _teamCity;
         private StringBuilder _output;
 
-        private static readonly string NL = NUnit.Env.NewLine;
+        private static readonly string NL = Environment.NewLine;
 
         [SetUp]
         public void CreateListener()
@@ -126,4 +125,3 @@ namespace NUnitLite.Tests
         private void FakeTestMethod() { }
     }
 }
-#endif

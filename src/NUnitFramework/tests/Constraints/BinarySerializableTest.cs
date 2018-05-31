@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
 using System;
 using System.Collections.Generic;
 

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008–2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,7 +22,6 @@
 // ***********************************************************************
 
 using NUnit.Framework.Interfaces;
-using NUnit.Framework.Internal.Commands;
 
 namespace NUnit.Framework.Internal
 {
@@ -32,21 +31,16 @@ namespace NUnit.Framework.Internal
     /// </summary>
     public class ParameterizedMethodSuite : TestSuite
     {
-        private bool _isTheory;
+        private readonly bool _isTheory;
 
         /// <summary>
-        /// Construct from a MethodInfo
+        /// Initializes a new instance of the <see cref="ParameterizedMethodSuite"/> class.
         /// </summary>
-        /// <param name="method"></param>
-        public ParameterizedMethodSuite(IMethodInfo method)
-            : base(method.TypeInfo.FullName, method.Name)
+        public ParameterizedMethodSuite(FixtureMethod method)
+            : base(method.FixtureType.FullName, method.Method.Name)
         {
-            Method = method;
-#if PORTABLE
-            _isTheory = false;
-#else
-            _isTheory = method.IsDefined<TheoryAttribute>(true);
-#endif
+            Method = method.Method;
+            _isTheory = method.Method.HasAttribute<TheoryAttribute>(true);
             this.MaintainTestOrder = true;
         }
 
@@ -63,7 +57,7 @@ namespace NUnit.Framework.Internal
 
                 if (this.Method.ContainsGenericParameters)
                     return "GenericMethod";
-                
+
                 return "ParameterizedMethod";
             }
         }

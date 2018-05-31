@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,14 +29,14 @@ namespace NUnit.Framework
 {
     /// <summary>
     /// ExplicitAttribute marks a test or test fixture so that it will
-    /// only be run if explicitly executed from the gui or command line
+    /// only be run if explicitly executed from the GUI or command line
     /// or if it is included by use of a filter. The test will not be
     /// run simply because an enclosing suite is run.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class|AttributeTargets.Method|AttributeTargets.Assembly, AllowMultiple=false, Inherited=false)]
     public class ExplicitAttribute : NUnitAttribute, IApplyToTest
     {
-        private string _reason;
+        private readonly string _reason;
 
         /// <summary>
         /// Default constructor

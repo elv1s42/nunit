@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -21,18 +21,24 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 using ActualValueDelegate = NUnit.Framework.Constraints.ActualValueDelegate<object>;
 
 namespace NUnit.Framework.Constraints
 {
-    [TestFixture, Parallelizable(ParallelScope.None)]
+    [TestFixture, NonParallelizable]
     public class DelayedConstraintTests : ConstraintTestBase
     {
+        // NOTE: This class tests the functioning of the DelayConstraint,
+        // not the After syntax. The AfterTests class tests our syntax,
+        // assuring that the proper constraint is generated. Here,we
+        // set up constraints in the simplest way possible, often by
+        // constructing the constraint class, and verify that they work.
+
         private const int DELAY = 100;
         private const int AFTER = 300;
         private const int POLLING = 50;
@@ -46,7 +52,7 @@ namespace NUnit.Framework.Constraints
         public void SetUp()
         {
             theConstraint = new DelayedConstraint(new EqualConstraint(true), 500);
-            expectedDescription = "True after 500 millisecond delay";
+            expectedDescription = "True after 500 milliseconds delay";
             stringRepresentation = "<after 500 <equal True>>";
 
             boolValue = false;
@@ -56,20 +62,20 @@ namespace NUnit.Framework.Constraints
         }
 
         static object[] SuccessData = new object[] { true };
-        static object[] FailureData = new object[] { 
+        static object[] FailureData = new object[] {
             new TestCaseData( false, "False" ),
             new TestCaseData( 0, "0" ),
             new TestCaseData( null, "null" ) };
 
-        static ActualValueDelegate DelegateReturningValue;
-        static ActualValueDelegate DelegateReturningFalse;
-        static ActualValueDelegate DelegateReturningZero;
+        static readonly ActualValueDelegate DelegateReturningValue;
+        static readonly ActualValueDelegate DelegateReturningFalse;
+        static readonly ActualValueDelegate DelegateReturningZero;
 
         static ActualValueDelegate<object>[] SuccessDelegates;
         static ActualValueDelegate<object>[] FailureDelegates;
 
         // Initialize static fields that are sensitive to order of initialization.
-        // Most compilers would probably intialize these in lexical order but it
+        // Most compilers would probably initialize these in lexical order but it
         // may not be guaranteed in all cases so we do it directly.
         static DelayedConstraintTests()
         {
@@ -81,14 +87,14 @@ namespace NUnit.Framework.Constraints
             FailureDelegates = new ActualValueDelegate<object>[] { DelegateReturningFalse, DelegateReturningZero };
         }
 
-        [Test, TestCaseSource("SuccessDelegates")]
+        [Test, TestCaseSource(nameof(SuccessDelegates))]
         public void SucceedsWithGoodDelegates(ActualValueDelegate<object> del)
         {
             SetValuesAfterDelay(DELAY);
             Assert.That(theConstraint.ApplyTo(del).IsSuccess);
         }
 
-        [Test, TestCaseSource("FailureDelegates")]
+        [Test, TestCaseSource(nameof(FailureDelegates))]
         public void FailsWithBadDelegates(ActualValueDelegate<object> del)
         {
             Assert.IsFalse(theConstraint.ApplyTo(del).IsSuccess);
@@ -171,8 +177,7 @@ namespace NUnit.Framework.Constraints
             }, Is.True.After(AFTER, POLLING));
 
             watch.Stop();
-            // TODO: This failed intermittently, esp. on .NET 4.0. Find another way to test or wait till we have warning errors.
-            //Assert.That(watch.ElapsedMilliseconds, Is.LessThan(AFTER));
+            Assert.That(watch.ElapsedMilliseconds, Is.InRange(DELAY, AFTER));
         }
 
         [Test]
@@ -249,15 +254,11 @@ namespace NUnit.Framework.Constraints
 
         private static object MethodReturningZero() { return 0; }
 
-        private static AutoResetEvent waitEvent = new AutoResetEvent(false);
+        private static readonly AutoResetEvent waitEvent = new AutoResetEvent(false);
 
         private static void Delay(int delay)
         {
-#if SILVERLIGHT
             waitEvent.WaitOne(delay);
-#else
-            waitEvent.WaitOne(delay, false);
-#endif
         }
 
         private static void MethodSetsValues()
@@ -268,12 +269,11 @@ namespace NUnit.Framework.Constraints
             statusString = "Finished";
         }
 
-        private void SetValuesAfterDelay(int delay)
+        private void SetValuesAfterDelay(int delayInMilliSeconds)
         {
-            setValuesDelay = delay;
+            setValuesDelay = delayInMilliSeconds;
             Thread thread = new Thread(MethodSetsValues);
             thread.Start();
         }
     }
 }
-#endif

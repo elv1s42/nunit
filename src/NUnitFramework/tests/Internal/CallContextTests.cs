@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if PARALLEL && !NETCF
+#if NET20 || NET35 || NET40 || NET45
 using System;
 using System.Threading;
 using System.Runtime.Remoting.Messaging;
@@ -51,7 +51,7 @@ namespace NUnit.Framework.Internal
 //			CallContext.FreeNamedDataSlot(CONTEXT_DATA);
 //		}
 
-        [OneTimeTearDown]
+        [TearDown]
         public void FreeCallContextDataSlot()
         {
             // NOTE: We don't want possible side effects on other cross context tests.

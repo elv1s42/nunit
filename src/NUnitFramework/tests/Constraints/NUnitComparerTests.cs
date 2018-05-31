@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -45,8 +45,10 @@ namespace NUnit.Framework.Constraints
         [TestCase(4.0d, 4.0f)]
         [TestCase(4.0f, 4)]
         [TestCase(4.0f, 4.0d)]
-        [TestCase(SpecialValue.Null, SpecialValue.Null)]
         [TestCase(null, null)]
+        [TestCase((char)4, (char)4)]
+        [TestCase((char)4, 4)]
+        [TestCase(4, (char)4)]
         public void EqualItems(object x, object y)
         {
             Assert.That(comparer.Compare(x, y) == 0);
@@ -61,8 +63,10 @@ namespace NUnit.Framework.Constraints
         [TestCase(4.0d, 2.0f)]
         [TestCase(4.0f, 2)]
         [TestCase(4.0f, 2.0d)]
-        [TestCase(4, SpecialValue.Null)]
         [TestCase(4, null)]
+        [TestCase((char)4, (char)2)]
+        [TestCase((char)4, 2)]
+        [TestCase(4, (char)2)]
         public void UnequalItems(object greater, object lesser)
         {
             Assert.That(comparer.Compare(greater, lesser) > 0);

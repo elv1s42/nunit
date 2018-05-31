@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !PORTABLE
 using NUnit.Common;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
@@ -69,7 +68,7 @@ namespace NUnitLite.Tests
         [Test]
         public void ThreeTestsFromATestListFile()
         {
-            using (var tf = new TestFile("TestListFile.txt", "TestListFile.txt"))
+            using (var tf = new TestFile("TestListFile.txt"))
             {
                 var filter = GetFilter("--testlist:" + tf.File.FullName);
                 Assert.That(filter, Is.TypeOf<OrFilter>());
@@ -90,8 +89,8 @@ namespace NUnitLite.Tests
         [Test]
         public void SixTestsFromTwoTestListFiles()
         {
-            using (var tf = new TestFile("TestListFile.txt", "TestListFile.txt"))
-            using (var tf2 = new TestFile("TestListFile2.txt", "TestListFile2.txt"))
+            using (var tf = new TestFile("TestListFile.txt"))
+            using (var tf2 = new TestFile("TestListFile2.txt"))
             {
                 var filter = GetFilter("--testlist:" + tf.File.FullName, "--testlist:" + tf2.File.FullName );
                 Assert.That(filter, Is.TypeOf<OrFilter>());
@@ -166,4 +165,3 @@ namespace NUnitLite.Tests
         }
     }
 }
-#endif

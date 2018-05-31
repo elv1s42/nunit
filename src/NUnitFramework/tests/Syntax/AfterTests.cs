@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -21,13 +21,16 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
 using System;
 using System.Threading;
 using System.Collections.Generic;
 
 namespace NUnit.Framework.Syntax
 {
+    // NOTE: The tests in this file ensure that the various
+    // syntactic elements work together to create a
+    // DelayedConstraint object with the proper values.
+
     public class AfterTest_SimpleConstraint : SyntaxTest
     {
         [SetUp]
@@ -38,6 +41,40 @@ namespace NUnit.Framework.Syntax
             builderSyntax = Builder().EqualTo(10).After(1000);
         }
     }
+
+    public class AfterMinutesTest_SimpleConstraint : SyntaxTest
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            parseTree = "<after 60000 <equal 10>>";
+            staticSyntax = Is.EqualTo(10).After(1).Minutes;
+            builderSyntax = Builder().EqualTo(10).After(1).Minutes;
+        }
+    }
+
+    public class AfterSecondsTest_SimpleConstraint : SyntaxTest
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            parseTree = "<after 20000 <equal 10>>";
+            staticSyntax = Is.EqualTo(10).After(20).Seconds;
+            builderSyntax = Builder().EqualTo(10).After(20).Seconds;
+        }
+    }
+
+    public class AfterMillisecondsTest_SimpleConstraint : SyntaxTest
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            parseTree = "<after 500 <equal 10>>";
+            staticSyntax = Is.EqualTo(10).After(500).MilliSeconds;
+            builderSyntax = Builder().EqualTo(10).After(500).MilliSeconds;
+        }
+    }
+
 
     public class AfterTest_PropertyTest : SyntaxTest
     {
@@ -189,4 +226,3 @@ namespace NUnit.Framework.Syntax
         }
     }
 }
-#endif

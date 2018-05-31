@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,13 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-// TODO: Rework this
-// RepeatAttribute should either
-//  1) Apply at load time to create the exact number of tests, or
-//  2) Apply at run time, generating tests or results dynamically
-//
-// #1 is feasible but doesn't provide much benefit
-// #2 requires infrastructure for dynamic test cases first
 using System;
 using System.Reflection;
 using NUnit.Framework.Interfaces;
@@ -44,14 +37,15 @@ namespace NUnit.Framework.Attributes
         [TestCase(typeof(RetrySucceedsOnSecondTryFixture), "Passed", 2)]
         [TestCase(typeof(RetrySucceedsOnThirdTryFixture), "Passed", 3)]
         [TestCase(typeof(RetryFailsEveryTimeFixture), "Failed(Child)", 3)]
-        [TestCase(typeof(RetryWithIgnoreAttributeFixture), "Skipped:Ignored", 0)]
-        [TestCase(typeof(RetryIgnoredOnFirstTryFixture), "Skipped:Ignored", 1)]
-        [TestCase(typeof(RetryIgnoredOnSecondTryFixture), "Skipped:Ignored", 2)]
-        [TestCase(typeof(RetryIgnoredOnThirdTryFixture), "Skipped:Ignored", 3)]
+        [TestCase(typeof(RetryWithIgnoreAttributeFixture), "Skipped:Ignored(Child)", 0)]
+        [TestCase(typeof(RetryIgnoredOnFirstTryFixture), "Skipped:Ignored(Child)", 1)]
+        [TestCase(typeof(RetryIgnoredOnSecondTryFixture), "Skipped:Ignored(Child)", 2)]
+        [TestCase(typeof(RetryIgnoredOnThirdTryFixture), "Skipped:Ignored(Child)", 3)]
         [TestCase(typeof(RetryErrorOnFirstTryFixture), "Failed(Child)", 1)]
         [TestCase(typeof(RetryErrorOnSecondTryFixture), "Failed(Child)", 2)]
         [TestCase(typeof(RetryErrorOnThirdTryFixture), "Failed(Child)", 3)]
-        public void RetryWorksAsExpected(Type fixtureType, string outcome, int nTries)
+        [TestCase(typeof(RetryTestCaseFixture), "Failed(Child)", 3)]
+        public void RetryWorksAsExpectedOnFixturesWithSetupAndTeardown(Type fixtureType, string outcome, int nTries)
         {
             RepeatingTestsFixtureBase fixture = (RepeatingTestsFixtureBase)Reflect.Construct(fixtureType);
             ITestResult result = TestBuilder.RunTestFixture(fixture);
@@ -64,6 +58,39 @@ namespace NUnit.Framework.Attributes
             Assert.AreEqual(nTries, fixture.Count);
         }
 
+        [TestCase(typeof(RetrySucceedsOnFirstTryFixture), "Passed")]
+        [TestCase(typeof(RetrySucceedsOnSecondTryFixture), "Failed", "Passed")]
+        [TestCase(typeof(RetrySucceedsOnThirdTryFixture), "Failed", "Failed", "Passed")]
+        [TestCase(typeof(RetryFailsEveryTimeFixture), "Failed", "Failed", "Failed")]
+        [TestCase(typeof(RetryIgnoredOnFirstTryFixture), "Skipped:Ignored")]
+        [TestCase(typeof(RetryIgnoredOnSecondTryFixture), "Failed", "Skipped:Ignored")]
+        [TestCase(typeof(RetryIgnoredOnThirdTryFixture), "Failed", "Failed", "Skipped:Ignored")]
+        [TestCase(typeof(RetryErrorOnFirstTryFixture), "Failed:Error")]
+        [TestCase(typeof(RetryErrorOnSecondTryFixture), "Failed", "Failed:Error")]
+        [TestCase(typeof(RetryErrorOnThirdTryFixture), "Failed", "Failed", "Failed:Error")]
+        public void RetryExposesEachResultInTearDown(Type fixtureType, params string[] results)
+        {
+            RepeatingTestsFixtureBase fixture = (RepeatingTestsFixtureBase)Reflect.Construct(fixtureType);
+            ITestResult result = TestBuilder.RunTestFixture(fixture);
+
+            Assert.AreEqual(results.Length, fixture.TearDownResults.Count);
+            for (int i = 0; i < results.Length; i++)
+                Assert.That(fixture.TearDownResults[i], Is.EqualTo(results[i]), $"Teardown {i} received incorrect result");
+        }
+
+        [TestCase(nameof(RetryWithoutSetUpOrTearDownFixture.SucceedsOnThirdTry), "Passed", 3)]
+        [TestCase(nameof(RetryWithoutSetUpOrTearDownFixture.FailsEveryTime), "Failed", 3)]
+        [TestCase(nameof(RetryWithoutSetUpOrTearDownFixture.ErrorsOnFirstTry), "Failed:Error", 1)]
+        public void RetryWorksAsExpectedOnFixturesWithoutSetupOrTeardown(string methodName, string outcome, int nTries)
+        {
+            var fixture = (RetryWithoutSetUpOrTearDownFixture)Reflect.Construct(typeof(RetryWithoutSetUpOrTearDownFixture));
+            ITestResult result = TestBuilder.RunTestCase(fixture, methodName);
+
+            Assert.That(result.ResultState.ToString(), Is.EqualTo(outcome));
+            Assert.AreEqual(nTries, fixture.Count);
+        }
+
+
         [Test]
         public void CategoryWorksWithRetry()
         {
@@ -73,6 +100,26 @@ namespace NUnit.Framework.Attributes
             Assert.IsNotNull(categories);
             Assert.AreEqual(1, categories.Count);
             Assert.AreEqual("SAMPLE", categories[0]);
+        }
+
+        [Test]
+        public void RetryUpdatesCurrentRepeatCountPropertyOnAlwaysFailingTest()
+        {
+            RepeatingTestsFixtureBase fixture = (RepeatingTestsFixtureBase)Reflect.Construct(typeof(RetryTestVerifyAttempt));
+            ITestResult result = TestBuilder.RunTestCase(fixture, "NeverPasses");
+
+            Assert.AreEqual(fixture.TearDownResults.Count, fixture.Count + 1, "expected the CurrentRepeatCount property to be one less than the number of executions");
+            Assert.AreEqual(result.FailCount, 1, "expected that the test failed all retries");
+        }
+
+        [Test]
+        public void RetryUpdatesCurrentRepeatCountPropertyOnEachAttempt()
+        {
+            RepeatingTestsFixtureBase fixture = (RepeatingTestsFixtureBase)Reflect.Construct(typeof(RetryTestVerifyAttempt));
+            ITestResult result = TestBuilder.RunTestCase(fixture, "PassesOnLastRetry");
+
+            Assert.AreEqual(fixture.TearDownResults.Count, fixture.Count + 1, "expected the CurrentRepeatCount property to be one less than the number of executions");
+            Assert.AreEqual(result.FailCount, 0, "expected that the test passed final retry");
         }
     }
 }

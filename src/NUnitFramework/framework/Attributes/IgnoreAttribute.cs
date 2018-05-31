@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -36,7 +36,7 @@ namespace NUnit.Framework
     [AttributeUsage(AttributeTargets.Method|AttributeTargets.Class|AttributeTargets.Assembly, AllowMultiple=false, Inherited=false)]
     public class IgnoreAttribute : NUnitAttribute, IApplyToTest
     {
-        private string _reason;
+        private readonly string _reason;
         private DateTime? _untilDate;
         private string _until;
 

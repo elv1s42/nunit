@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007-2015 Charlie Poole
+// Copyright (c) 2007-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -36,12 +36,20 @@ namespace NUnit.Framework.Constraints
         /// Construct a CollectionContainsConstraint
         /// </summary>
         /// <param name="expected"></param>
+        [Obsolete("Deprecated, use 'new SomeItemsConstraint(new EqualConstraint(expected))' or 'Has.Some.EqualTo(expected)' instead.")]
         public CollectionContainsConstraint(object expected)
             : base(expected)
         {
-            this.Expected = expected;
-            this.DisplayName = "Contains";
+            Expected = expected;
         }
+
+        /// <summary> 
+        /// The display name of this Constraint for use by ToString().
+        /// The default value is the name of the constraint with
+        /// trailing "Constraint" removed. Derived classes may set
+        /// this to another name in their constructors.
+        /// </summary>
+        public override string DisplayName { get { return "Contains"; } }
 
         /// <summary>
         /// The Description of what this constraint tests, for
@@ -55,7 +63,7 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// Gets the expected object
         /// </summary>
-        protected object Expected { get; private set; }
+        protected object Expected { get; }
 
         /// <summary>
         /// Test whether the expected item is contained in the collection

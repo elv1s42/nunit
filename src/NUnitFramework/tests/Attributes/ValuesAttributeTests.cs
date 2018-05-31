@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,13 +22,11 @@
 // ***********************************************************************
 
 using System;
-using System.Reflection;
-using NUnit.Framework.Compatibility;
-using NUnit.Framework.Internal;
-
-#if PORTABLE
 using System.Linq;
-#endif
+using System.Reflection;
+using NUnit.Compatibility;
+using NUnit.Framework.Internal;
+using NUnit.TestUtilities;
 
 namespace NUnit.Framework.Attributes
 {
@@ -84,16 +82,71 @@ namespace NUnit.Framework.Attributes
 
         private void CheckValues(string methodName, params object[] expected)
         {
-            MethodInfo method = GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+            MethodInfo method = GetType().GetTypeInfo().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
             ParameterInfo param = method.GetParameters()[0];
-#if PORTABLE
-            var attr = param.GetCustomAttributes(typeof(ValuesAttribute), false).First() as ValuesAttribute;
-#else
-            var attr = param.GetCustomAttributes(typeof(ValuesAttribute), false)[0] as ValuesAttribute;
-#endif
-            Assert.That(attr.GetData(new ParameterWrapper(new MethodWrapper(GetType(), method), param)), Is.EqualTo(expected));
+
+            var attr = param.GetAttributes<ValuesAttribute>(false).Single();
+
+            Assert.That(attr.GetData(GetType(), param), Is.EqualTo(expected));
         }
 
         #endregion
+
+        [Test]
+        public void SupportsNullableDecimal([Values(null)] decimal? x)
+        {
+            Assert.That(x.HasValue, Is.False);
+        }
+
+        [Test]
+        public void SupportsNullableDateTime([Values(null)] DateTime? dt)
+        {
+            Assert.That(dt.HasValue, Is.False);
+        }
+
+        [Test]
+        public void SupportsNullableTimeSpan([Values(null)] TimeSpan? dt)
+        {
+            Assert.That(dt.HasValue, Is.False);
+        }
+
+        [Test]
+        public void NullableSimpleFormalParametersWithArgument([Values(1)] int? a)
+        {
+            Assert.AreEqual(1, a);
+        }
+
+        [Test]
+        public void NullableSimpleFormalParametersWithNullArgument([Values(null)] int? a)
+        {
+            Assert.IsNull(a);
+        }
+
+
+        [Test]
+        public void MethodWithArrayArguments([Values(
+            (object)new object[] { 1, "text", null },
+            (object)new object[0],
+            (object)new object[] { 1, new int[] { 2, 3 }, 4 },
+            (object)new object[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 })] object o)
+        {
+        }
+
+        [Test]
+        public void TestNameIntrospectsArrayValues()
+        {
+            TestSuite suite = TestBuilder.MakeParameterizedMethodSuite(
+                GetType(), nameof(MethodWithArrayArguments));
+
+            Assert.That(suite.TestCaseCount, Is.EqualTo(4));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(suite.Tests[0].Name, Is.EqualTo(@"MethodWithArrayArguments([1, ""text"", null])"));
+                Assert.That(suite.Tests[1].Name, Is.EqualTo(@"MethodWithArrayArguments([])"));
+                Assert.That(suite.Tests[2].Name, Is.EqualTo(@"MethodWithArrayArguments([1, Int32[], 4])"));
+                Assert.That(suite.Tests[3].Name, Is.EqualTo(@"MethodWithArrayArguments([1, 2, 3, 4, 5, ...])"));
+            });
+        }
     }
 }

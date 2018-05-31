@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -57,7 +57,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override string Description
         {
-            get { return baseConstraint.Description; }
+            get { return BaseConstraint.Description; }
         }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace NUnit.Framework.Constraints
                 this,
                 caughtException,
                 caughtException != null
-                    ? baseConstraint.ApplyTo(caughtException)
+                    ? BaseConstraint.ApplyTo(caughtException)
                     : null);
         }
 
@@ -112,7 +112,7 @@ namespace NUnit.Framework.Constraints
 
         #region Nested Result Class
 
-        private class ThrowsConstraintResult : ConstraintResult
+        private sealed class ThrowsConstraintResult : ConstraintResult
         {
             private readonly ConstraintResult baseResult;
 
@@ -148,7 +148,7 @@ namespace NUnit.Framework.Constraints
 
         #region ExceptionInterceptor
 
-        internal class ExceptionInterceptor
+        internal sealed class ExceptionInterceptor
         {
             private ExceptionInterceptor() { }
 
@@ -156,34 +156,32 @@ namespace NUnit.Framework.Constraints
             {
                 var invocationDescriptor = GetInvocationDescriptor(invocation);
 
-#if NET_4_0 || NET_4_5 || PORTABLE
-                if (AsyncInvocationRegion.IsAsyncOperation(invocationDescriptor.Delegate))
+#if ASYNC
+                if (AsyncToSyncAdapter.IsAsyncOperation(invocationDescriptor.Delegate))
                 {
-                    using (var region = AsyncInvocationRegion.Create(invocationDescriptor.Delegate))
+                    try
+                    {
+                        AsyncToSyncAdapter.Await(invocationDescriptor.Invoke);
+                        return null;
+                    }
+                    catch (Exception ex)
+                    {
+                        return ex;
+                    }
+                }
+#endif
+                {
+                    using (new TestExecutionContext.IsolatedContext())
                     {
                         try
                         {
-                            object result = invocationDescriptor.Invoke();
-                            region.WaitForPendingOperationsToComplete(result);
+                            invocationDescriptor.Invoke();
                             return null;
                         }
                         catch (Exception ex)
                         {
                             return ex;
                         }
-                    }
-                }
-                else
-#endif
-                {
-                    try
-                    {
-                        invocationDescriptor.Invoke();
-                        return null;
-                    }
-                    catch (Exception ex)
-                    {
-                        return ex;
                     }
                 }
             }
@@ -198,10 +196,11 @@ namespace NUnit.Framework.Constraints
 
                     if (testDelegate != null)
                     {
+                        Guard.ArgumentNotAsyncVoid(testDelegate, nameof(actual));
                         invocationDescriptor = new VoidInvocationDescriptor(testDelegate);
                     }
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
                     else
                     {
                         var asyncTestDelegate = actual as AsyncTestDelegate;
@@ -217,7 +216,7 @@ namespace NUnit.Framework.Constraints
                         String.Format(
                             "The actual value must be a TestDelegate or AsyncTestDelegate but was {0}",
                             actual.GetType().Name),
-                        "actual");
+                        nameof(actual));
 
                 return invocationDescriptor;
             }
@@ -227,7 +226,7 @@ namespace NUnit.Framework.Constraints
 
 #region InvocationDescriptor
 
-        internal class GenericInvocationDescriptor<T> : IInvocationDescriptor
+        internal sealed class GenericInvocationDescriptor<T> : IInvocationDescriptor
         {
             private readonly ActualValueDelegate<T> _del;
 
@@ -253,7 +252,7 @@ namespace NUnit.Framework.Constraints
             object Invoke();
         }
 
-        private class VoidInvocationDescriptor : IInvocationDescriptor
+        private sealed class VoidInvocationDescriptor : IInvocationDescriptor
         {
             private readonly TestDelegate _del;
 

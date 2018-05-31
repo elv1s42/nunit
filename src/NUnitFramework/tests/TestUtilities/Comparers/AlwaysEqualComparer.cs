@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2006 Charlie Poole
+// Copyright (c) 2006 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -28,11 +28,11 @@ namespace NUnit.TestUtilities.Comparers
 {
     internal class AlwaysEqualComparer : IComparer
     {
-        public bool Called = false;
+        public int CallCount = 0;
 
         int IComparer.Compare(object x, object y)
         {
-            Called = true;
+            CallCount++;
 
             // This comparer ALWAYS returns zero (equal)!
             return 0;

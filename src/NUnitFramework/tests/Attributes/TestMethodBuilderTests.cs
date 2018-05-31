@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,7 +22,6 @@
 // ***********************************************************************
 
 using System.Collections.Generic;
-using System.Reflection;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Interfaces;
 
@@ -30,6 +29,8 @@ namespace NUnit.Framework.Attributes
 {
     public class TestMethodBuilderTests
     {
+        #region TestAttribute
+
         [Test]
         public void TestAttribute_NoArgs_Runnable()
         {
@@ -45,6 +46,10 @@ namespace NUnit.Framework.Attributes
             TestMethod test = new TestAttribute().BuildFrom(method, null);
             Assert.That(test.RunState, Is.EqualTo(RunState.NotRunnable));
         }
+
+        #endregion
+
+        #region TestCaseAttribute
 
         [Test]
         public void TestCaseAttribute_NoArgs_NotRunnable()
@@ -73,6 +78,10 @@ namespace NUnit.Framework.Attributes
             Assert.That(tests[0].RunState, Is.EqualTo(RunState.NotRunnable));
         }
 
+        #endregion
+
+        #region TestCaseSourceAttribute
+
         [Test]
         public void TestCaseSourceAttribute_NoArgs_NotRunnable()
         {
@@ -81,6 +90,15 @@ namespace NUnit.Framework.Attributes
             Assert.That(tests.Count, Is.EqualTo(3));
             foreach (var test in tests)
                 Assert.That(test.RunState, Is.EqualTo(RunState.NotRunnable));
+        }
+
+        [Test]
+        public void TestCaseSourceAttribute_NoArgs_NoData_NotRunnable()
+        {
+            var method = GetMethod("MethodWithoutArgs");
+            List<TestMethod> tests = new List<TestMethod>(new TestCaseSourceAttribute("ZeroData").BuildFrom(method, null));
+            Assert.That(tests.Count, Is.EqualTo(1));
+            Assert.That(tests[0].RunState, Is.EqualTo(RunState.NotRunnable));
         }
 
         [Test]
@@ -103,7 +121,10 @@ namespace NUnit.Framework.Attributes
                 Assert.That(test.RunState, Is.EqualTo(RunState.NotRunnable));
         }
 
-#if !PORTABLE
+        #endregion
+
+        #region TheoryAttribute
+
         [Test]
         public void TheoryAttribute_NoArgs_NoCases()
         {
@@ -121,7 +142,10 @@ namespace NUnit.Framework.Attributes
             foreach (var test in tests)
                 Assert.That(test.RunState, Is.EqualTo(RunState.Runnable));
         }
-#endif
+
+        #endregion
+
+        #region CombinatorialAttribute
 
         [Test]
         public void CombinatorialAttribute_NoArgs_NoCases()
@@ -141,6 +165,10 @@ namespace NUnit.Framework.Attributes
                 Assert.That(test.RunState, Is.EqualTo(RunState.Runnable));
         }
 
+        #endregion
+
+        #region PairwiseAttribute
+
         [Test]
         public void PairwiseAttribute_NoArgs_NoCases()
         {
@@ -158,6 +186,10 @@ namespace NUnit.Framework.Attributes
             foreach (var test in tests)
                 Assert.That(test.RunState, Is.EqualTo(RunState.Runnable));
         }
+
+        #endregion
+
+        #region SequentialAttribute
 
         [Test]
         public void SequentialAttribute_NoArgs_NoCases()
@@ -177,9 +209,13 @@ namespace NUnit.Framework.Attributes
                 Assert.That(test.RunState, Is.EqualTo(RunState.Runnable));
         }
 
-        private IMethodInfo GetMethod(string methodName)
+        #endregion
+
+        #region Helper Methods and Data
+
+        private FixtureMethod GetMethod(string methodName)
         {
-            return new MethodWrapper(GetType(), methodName);
+            return GetType().GetFixtureMethod(methodName);
         }
 
         public static void MethodWithoutArgs() { }
@@ -187,6 +223,8 @@ namespace NUnit.Framework.Attributes
         public static void MethodWithIntValues(
             [Values(1, 2, 3)]int x,
             [Values(10, 20)]int y) { }
+
+        static object[] ZeroData = new object[0];
 
         static object[] GoodData = new object[] {
             new object[] { 12, 3 },
@@ -200,5 +238,7 @@ namespace NUnit.Framework.Attributes
 
         [DatapointSource]
         int[] ints = new int[] { 1, 2, 3 };
+
+        #endregion
     }
 }

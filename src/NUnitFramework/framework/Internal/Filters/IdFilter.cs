@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2013 Charlie Poole
+// Copyright (c) 2013 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,8 +30,7 @@ namespace NUnit.Framework.Internal.Filters
     /// <summary>
     /// IdFilter selects tests based on their id
     /// </summary>
-    [Serializable]
-    public class IdFilter : ValueMatchFilter
+    internal class IdFilter : ValueMatchFilter
     {
         /// <summary>
         /// Construct an IdFilter for a single value

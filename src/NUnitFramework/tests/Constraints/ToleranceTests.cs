@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 // 
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,50 +29,41 @@ using NUnit.Framework.Constraints;
 
 #endregion
 
-namespace NUnit.Framework.Tests.Constraints
+namespace NUnit.Framework.Constraints
 {
     [TestFixture]
     public class ToleranceTests
     {
-        private NUnitEqualityComparer _comparer;
-
-        [TearDown]
-        public void TearDown()
+        [Test, DefaultFloatingPointTolerance(0.1)]
+        public void DefaultTolerance_Success()
         {
-            GlobalSettings.DefaultFloatingPointTolerance = 0d;
-            _comparer = new NUnitEqualityComparer();
-        }
-
-        [Test]
-        public void TestGlobalDefaultTolerance_Success()
-        {
-            GlobalSettings.DefaultFloatingPointTolerance = 0.1d;
             Assert.That(2.05d, Is.EqualTo(2.0d));
         }
 
-        [Test]
-        public void TestGlobalDefaultTolerance_Failure()
+        [Test, DefaultFloatingPointTolerance(0.01)]
+        public void DefaultTolerance_Failure()
         {
-            GlobalSettings.DefaultFloatingPointTolerance = 0.01d;
             Assert.That(2.05d, Is.Not.EqualTo(2.0d));
         }
 
-        [Test]
+        [Test, DefaultFloatingPointTolerance(0.5)]
         public void TestToleranceDefault()
         {
-            GlobalSettings.DefaultFloatingPointTolerance = 0.5d;
             var defaultTolerance = Tolerance.Default;
             Assert.IsTrue(defaultTolerance.IsUnsetOrDefault);
-            Assert.IsTrue(_comparer.AreEqual(2.0d, 2.1d, ref defaultTolerance ));
+
+            var comparer = new NUnitEqualityComparer();
+            Assert.IsTrue(comparer.AreEqual(2.0d, 2.1d, ref defaultTolerance ));
         }
 
-        [Test]
+        [Test, DefaultFloatingPointTolerance(0.5)]
         public void TestToleranceExact()
         {
-            GlobalSettings.DefaultFloatingPointTolerance = 0.5d;
             var noneTolerance = Tolerance.Exact;
             Assert.IsFalse(noneTolerance.IsUnsetOrDefault);
-            Assert.IsFalse(_comparer.AreEqual(2.0d, 2.1d, ref noneTolerance));
+
+            var comparer = new NUnitEqualityComparer();
+            Assert.IsFalse(comparer.AreEqual(2.0d, 2.1d, ref noneTolerance));
         }
 
         [Test]

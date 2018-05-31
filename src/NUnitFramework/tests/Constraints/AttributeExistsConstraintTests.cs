@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,7 +22,6 @@
 // ***********************************************************************
 
 using System.Reflection;
-using NUnit.Framework.Compatibility;
 
 namespace NUnit.Framework.Constraints
 {

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -39,11 +39,11 @@ namespace NUnit.TestData.CategoryAttributeData
         public void Test2() { }
 
         [Test, Category("Top")]
-        [TestCaseSource("Test3Data")]
+        [TestCaseSource(nameof(Test3Data))]
         public void Test3(int x) { }
 
-        [Test, Category("A-B")]
-        public void Test4() { }
+        [Test, Category("A-B"), Category("A,B"), Category("A!B"), Category("A+B")]
+        public void TestValidSpecialChars() { }
 
 #pragma warning disable 414
         private static TestCaseData[] Test3Data = new TestCaseData[] {

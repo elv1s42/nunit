@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,47 +27,44 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Threading;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Execution;
 using NUnit.Tests;
 using NUnit.Tests.Assemblies;
+using NUnit.TestUtilities;
+using NUnit.Framework.Internal.Filters;
 
 namespace NUnit.Framework.Api
 {
     // Functional tests of the TestAssemblyRunner and all subordinate classes
     public class TestAssemblyRunnerTests : ITestListener
     {
-        private const string MOCK_ASSEMBLY_FILE = "mock-assembly.exe";
+        private const string MOCK_ASSEMBLY_FILE = "mock-assembly.dll";
+#if NETCOREAPP1_1
+        private const string COULD_NOT_LOAD_MSG = "The system cannot find the file specified.";
+#else
+        private const string COULD_NOT_LOAD_MSG = "Could not load";
+#endif
         private const string BAD_FILE = "mock-assembly.pdb";
         private const string SLOW_TESTS_FILE = "slow-nunit-tests.dll";
         private const string MISSING_FILE = "junk.dll";
 
-#if SILVERLIGHT || PORTABLE
         private static readonly string MOCK_ASSEMBLY_NAME = typeof(MockAssembly).GetTypeInfo().Assembly.FullName;
-#endif
+        private const string INVALID_FILTER_ELEMENT_MESSAGE = "Invalid filter element: {0}";
 
-        private static readonly IDictionary EMPTY_SETTINGS = new Dictionary<string, object>();
+        private static readonly IDictionary<string, object> EMPTY_SETTINGS = new Dictionary<string, object>();
 
         private ITestAssemblyRunner _runner;
 
         private int _testStartedCount;
         private int _testFinishedCount;
+        private int _testOutputCount;
         private int _successCount;
         private int _failCount;
         private int _skipCount;
         private int _inconclusiveCount;
-
-        private static bool REALLY_RUNNING_ON_CF = false;
-
-#if NETCF
-        static TestAssemblyRunnerTests()
-        {
-            // We may be running on the desktop using assembly unification
-            REALLY_RUNNING_ON_CF = Type.GetType("System.ConsoleColor") == null;
-        }
-#endif
 
         [SetUp]
         public void CreateRunner()
@@ -76,13 +73,14 @@ namespace NUnit.Framework.Api
 
             _testStartedCount = 0;
             _testFinishedCount = 0;
+            _testOutputCount = 0;
             _successCount = 0;
             _failCount = 0;
             _skipCount = 0;
             _inconclusiveCount = 0;
         }
 
-        #region Load
+#region Load
 
         [Test]
         public void Load_GoodFile_ReturnsRunnableSuite()
@@ -91,11 +89,7 @@ namespace NUnit.Framework.Api
 
             Assert.That(result.IsSuite);
             Assert.That(result, Is.TypeOf<TestAssembly>());
-#if SILVERLIGHT || PORTABLE
-            Assert.That(result.Name, Is.EqualTo(MOCK_ASSEMBLY_NAME));
-#else
             Assert.That(result.Name, Is.EqualTo(MOCK_ASSEMBLY_FILE));
-#endif
             Assert.That(result.RunState, Is.EqualTo(Interfaces.RunState.Runnable));
             Assert.That(result.TestCaseCount, Is.EqualTo(MockAssembly.Tests));
         }
@@ -111,7 +105,7 @@ namespace NUnit.Framework.Api
             Assert.That(result.RunState, Is.EqualTo(Interfaces.RunState.NotRunnable));
             Assert.That(result.TestCaseCount, Is.EqualTo(0));
             Assert.That(result.Properties.Get(PropertyNames.SkipReason),
-                Does.StartWith(REALLY_RUNNING_ON_CF ? "File or assembly name" : "Could not load"));
+                Does.StartWith(COULD_NOT_LOAD_MSG));
         }
 
         [Test]
@@ -125,7 +119,7 @@ namespace NUnit.Framework.Api
             Assert.That(result.RunState, Is.EqualTo(Interfaces.RunState.NotRunnable));
             Assert.That(result.TestCaseCount, Is.EqualTo(0));
             Assert.That(result.Properties.Get(PropertyNames.SkipReason),
-                Does.StartWith(REALLY_RUNNING_ON_CF ? "File or assembly name" : "Could not load").And.Contains(BAD_FILE));
+                Does.StartWith("Could not load").And.Contains(BAD_FILE));
         }
 
 #endregion
@@ -163,6 +157,68 @@ namespace NUnit.Framework.Api
 
 #endregion
 
+#region ExploreTests
+        [Test]
+        public void ExploreTests_WithoutLoad_ThrowsInvalidOperation()
+        {
+            var ex = Assert.Throws<InvalidOperationException>(
+                    () => _runner.ExploreTests(TestFilter.Empty));
+            Assert.That(ex.Message, Is.EqualTo("The ExploreTests method was called but no test has been loaded"));
+        }
+
+        [Test]
+        public void ExploreTests_FileNotFound_ReturnsZeroTests()
+        {
+            _runner.Load(MISSING_FILE, EMPTY_SETTINGS);
+            var explorer = _runner.ExploreTests(TestFilter.Empty);
+            Assert.That(explorer.TestCaseCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ExploreTests_BadFile_ReturnsZeroTests()
+        {
+            _runner.Load(BAD_FILE, EMPTY_SETTINGS);
+            var explorer = _runner.ExploreTests(TestFilter.Empty);
+            Assert.That(explorer.TestCaseCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ExploreTests_AfterLoad_ReturnsCorrectCount()
+        {
+            LoadMockAssembly();
+            var explorer = _runner.ExploreTests(TestFilter.Empty);
+            Assert.That(explorer.TestCaseCount, Is.EqualTo(MockAssembly.Tests));
+        }
+
+        [Test]
+        public void ExploreTest_AfterLoad_ReturnsSameTestCount()
+        {
+            LoadMockAssembly();
+            var explorer = _runner.ExploreTests(TestFilter.Empty);
+            Assert.That(explorer.TestCaseCount, Is.EqualTo(_runner.CountTestCases(TestFilter.Empty)));
+        }
+
+        [Test]
+        public void ExploreTests_AfterLoad_WithFilter_ReturnCorrectCount()
+        {
+            LoadMockAssembly();
+            ITestFilter filter = new CategoryFilter("FixtureCategory");
+
+            var explorer = _runner.ExploreTests(filter);
+            Assert.That(explorer.TestCaseCount, Is.EqualTo(MockTestFixture.Tests));
+        }
+
+        [Test]
+        public void ExploreTests_AfterLoad_WithFilter_ReturnSameTestCount()
+        {
+            LoadMockAssembly();
+            ITestFilter filter = new CategoryFilter("FixtureCategory");
+
+            var explorer = _runner.ExploreTests(filter);
+            Assert.That(explorer.TestCaseCount, Is.EqualTo(_runner.CountTestCases(filter)));
+        }
+#endregion
+
 #region Run
 
         [Test]
@@ -176,8 +232,9 @@ namespace NUnit.Framework.Api
             Assert.That(result.Test.RunState, Is.EqualTo(RunState.Runnable));
             Assert.That(result.Test.TestCaseCount, Is.EqualTo(MockAssembly.Tests));
             Assert.That(result.ResultState, Is.EqualTo(ResultState.ChildFailure));
-            Assert.That(result.PassCount, Is.EqualTo(MockAssembly.Success));
-            Assert.That(result.FailCount, Is.EqualTo(MockAssembly.ErrorsAndFailures));
+            Assert.That(result.PassCount, Is.EqualTo(MockAssembly.Passed));
+            Assert.That(result.FailCount, Is.EqualTo(MockAssembly.Failed));
+            Assert.That(result.WarningCount, Is.EqualTo(MockAssembly.Warnings));
             Assert.That(result.SkipCount, Is.EqualTo(MockAssembly.Skipped));
             Assert.That(result.InconclusiveCount, Is.EqualTo(MockAssembly.Inconclusive));
         }
@@ -186,13 +243,14 @@ namespace NUnit.Framework.Api
         public void Run_AfterLoad_SendsExpectedEvents()
         {
             LoadMockAssembly();
-            var result = _runner.Run(this, TestFilter.Empty);
+            _runner.Run(this, TestFilter.Empty);
 
-            Assert.That(_testStartedCount, Is.EqualTo(MockAssembly.Tests - IgnoredFixture.Tests - BadFixture.Tests - ExplicitFixture.Tests));
-            Assert.That(_testFinishedCount, Is.EqualTo(MockAssembly.Tests));
+            Assert.That(_testStartedCount, Is.EqualTo(MockAssembly.TestStartedEvents));
+            Assert.That(_testFinishedCount, Is.EqualTo(MockAssembly.TestFinishedEvents));
+            Assert.That(_testOutputCount, Is.EqualTo(MockAssembly.TestOutputEvents));
 
-            Assert.That(_successCount, Is.EqualTo(MockAssembly.Success));
-            Assert.That(_failCount, Is.EqualTo(MockAssembly.ErrorsAndFailures));
+            Assert.That(_successCount, Is.EqualTo(MockAssembly.Passed));
+            Assert.That(_failCount, Is.EqualTo(MockAssembly.Failed));
             Assert.That(_skipCount, Is.EqualTo(MockAssembly.Skipped));
             Assert.That(_inconclusiveCount, Is.EqualTo(MockAssembly.Inconclusive));
         }
@@ -217,7 +275,44 @@ namespace NUnit.Framework.Api
             Assert.That(result.Test.TestCaseCount, Is.EqualTo(0));
             Assert.That(result.ResultState, Is.EqualTo(ResultState.NotRunnable.WithSite(FailureSite.SetUp)));
             Assert.That(result.Message,
-                Does.StartWith(REALLY_RUNNING_ON_CF ? "File or assembly name" : "Could not load"));
+                Does.StartWith(COULD_NOT_LOAD_MSG));
+        }
+
+        [Test]
+        public void RunTestsAction_WithInvalidFilterElement_ThrowsArgumentException()
+        {
+            LoadMockAssembly();
+
+            var ex = Assert.Throws<ArgumentException>(() =>
+                {
+                    TestFilter.FromXml("<filter><invalidElement>foo</invalidElement></filter>");
+                });
+
+            Assert.That(ex.Message, Does.StartWith(string.Format(INVALID_FILTER_ELEMENT_MESSAGE, "invalidElement")));
+        }
+
+        [Test]
+        public void Run_WithParameters()
+        {
+            var dict = new Dictionary<string, string>();
+            dict.Add("X", "5");
+            dict.Add("Y", "7");
+
+            var settings = new Dictionary<string, object>();
+            settings.Add("TestParametersDictionary", dict);
+            LoadMockAssembly(settings);
+            var result = _runner.Run(TestListener.NULL, TestFilter.Empty);
+            CheckParameterOutput(result);
+        }
+
+        [Test]
+        public void Run_WithLegacyParameters()
+        {
+            var settings = new Dictionary<string, object>();
+            settings.Add("TestParameters", "X=5;Y=7");
+            LoadMockAssembly(settings);
+            var result = _runner.Run(TestListener.NULL, TestFilter.Empty);
+            CheckParameterOutput(result);
         }
 
         [Test]
@@ -232,7 +327,7 @@ namespace NUnit.Framework.Api
             Assert.That(result.Test.TestCaseCount, Is.EqualTo(0));
             Assert.That(result.ResultState, Is.EqualTo(ResultState.NotRunnable.WithSite(FailureSite.SetUp)));
             Assert.That(result.Message,
-                Does.StartWith(REALLY_RUNNING_ON_CF ? "File or assembly name" : "Could not load"));
+                Does.StartWith("Could not load"));
         }
 
 #endregion
@@ -252,8 +347,8 @@ namespace NUnit.Framework.Api
             Assert.That(_runner.Result.Test.RunState, Is.EqualTo(RunState.Runnable));
             Assert.That(_runner.Result.Test.TestCaseCount, Is.EqualTo(MockAssembly.Tests));
             Assert.That(_runner.Result.ResultState, Is.EqualTo(ResultState.ChildFailure));
-            Assert.That(_runner.Result.PassCount, Is.EqualTo(MockAssembly.Success));
-            Assert.That(_runner.Result.FailCount, Is.EqualTo(MockAssembly.ErrorsAndFailures));
+            Assert.That(_runner.Result.PassCount, Is.EqualTo(MockAssembly.Passed));
+            Assert.That(_runner.Result.FailCount, Is.EqualTo(MockAssembly.Failed));
             Assert.That(_runner.Result.SkipCount, Is.EqualTo(MockAssembly.Skipped));
             Assert.That(_runner.Result.InconclusiveCount, Is.EqualTo(MockAssembly.Inconclusive));
         }
@@ -268,8 +363,8 @@ namespace NUnit.Framework.Api
             Assert.That(_testStartedCount, Is.EqualTo(MockAssembly.Tests - IgnoredFixture.Tests - BadFixture.Tests - ExplicitFixture.Tests));
             Assert.That(_testFinishedCount, Is.EqualTo(MockAssembly.Tests));
 
-            Assert.That(_successCount, Is.EqualTo(MockAssembly.Success));
-            Assert.That(_failCount, Is.EqualTo(MockAssembly.ErrorsAndFailures));
+            Assert.That(_successCount, Is.EqualTo(MockAssembly.Passed));
+            Assert.That(_failCount, Is.EqualTo(MockAssembly.Failed));
             Assert.That(_skipCount, Is.EqualTo(MockAssembly.Skipped));
             Assert.That(_inconclusiveCount, Is.EqualTo(MockAssembly.Inconclusive));
         }
@@ -296,7 +391,7 @@ namespace NUnit.Framework.Api
             Assert.That(_runner.Result.Test.TestCaseCount, Is.EqualTo(0));
             Assert.That(_runner.Result.ResultState, Is.EqualTo(ResultState.NotRunnable.WithSite(FailureSite.SetUp)));
             Assert.That(_runner.Result.Message,
-                Does.StartWith(REALLY_RUNNING_ON_CF ? "File or assembly name" : "Could not load"));
+                Does.StartWith(COULD_NOT_LOAD_MSG));
         }
 
         [Test]
@@ -313,7 +408,7 @@ namespace NUnit.Framework.Api
             Assert.That(_runner.Result.Test.TestCaseCount, Is.EqualTo(0));
             Assert.That(_runner.Result.ResultState, Is.EqualTo(ResultState.NotRunnable.WithSite(FailureSite.SetUp)));
             Assert.That(_runner.Result.Message,
-                Does.StartWith(REALLY_RUNNING_ON_CF ? "File or assembly name" : "Could not load"));
+                Does.StartWith("Could not load"));
         }
 
 #endregion
@@ -409,34 +504,44 @@ namespace NUnit.Framework.Api
             }
         }
 
+        /// <summary>
+        /// Called when a test produces output for immediate display
+        /// </summary>
+        /// <param name="output">A TestOutput object containing the text to display</param>
+        public void TestOutput(TestOutput output)
+        {
+            _testOutputCount++;
+        }
+
 #endregion
 
 #region Helper Methods
 
         private ITest LoadMockAssembly()
         {
-#if PORTABLE
+            return LoadMockAssembly(EMPTY_SETTINGS);
+        }
+
+        private ITest LoadMockAssembly(IDictionary<string, object> settings)
+        {
             return _runner.Load(
-                typeof(MockAssembly).GetTypeInfo().Assembly, 
-                EMPTY_SETTINGS);
-#elif SILVERLIGHT
-            return _runner.Load(MOCK_ASSEMBLY_NAME, EMPTY_SETTINGS);
-#else
-            return _runner.Load(
-                Path.Combine(TestContext.CurrentContext.TestDirectory, MOCK_ASSEMBLY_FILE), 
-                EMPTY_SETTINGS);
-#endif
+                Path.Combine(TestContext.CurrentContext.TestDirectory, MOCK_ASSEMBLY_FILE),
+                settings);
         }
 
         private ITest LoadSlowTests()
         {
-#if PORTABLE
-            return _runner.Load(typeof(SlowTests).GetTypeInfo().Assembly, EMPTY_SETTINGS);
-#elif SILVERLIGHT
-            return _runner.Load(typeof(SlowTests).GetTypeInfo().Assembly.FullName, EMPTY_SETTINGS);
-#else
             return _runner.Load(Path.Combine(TestContext.CurrentContext.TestDirectory, SLOW_TESTS_FILE), EMPTY_SETTINGS);
-#endif
+        }
+
+        private void CheckParameterOutput(ITestResult result)
+        {
+            var childResult = TestFinder.Find(
+                "DisplayRunParameters", result, true);
+
+            Assert.That(childResult.Output, Is.EqualTo(
+                "Parameter X = 5" + Environment.NewLine +
+                "Parameter Y = 7" + Environment.NewLine));
         }
 
 #endregion

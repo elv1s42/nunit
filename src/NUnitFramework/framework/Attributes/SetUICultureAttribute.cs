@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !NETCF && !PORTABLE
+#if !NETSTANDARD1_6
 using System;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -29,12 +29,17 @@ using NUnit.Framework.Internal;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// Summary description for SetUICultureAttribute.
+    /// Sets the current UI Culture for the duration of a test.
+    /// <para>
+    /// It may be specified at the level of a test or a fixture.
+    /// The UI culture remains set until the test or fixture completes and is then reset to its original value.
+    /// </para>
     /// </summary>
+    /// <seealso cref="SetCultureAttribute"/>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Assembly, AllowMultiple = false, Inherited=true)]
     public class SetUICultureAttribute : PropertyAttribute, IApplyToContext
     {
-        private string _culture;
+        private readonly string _culture;
 
         /// <summary>
         /// Construct given the name of a culture
@@ -49,7 +54,7 @@ namespace NUnit.Framework
 
         void IApplyToContext.ApplyToContext(TestExecutionContext context)
         {
-            context.CurrentUICulture = new System.Globalization.CultureInfo(_culture);
+            context.CurrentUICulture = new System.Globalization.CultureInfo(_culture, false);
         }
 
         #endregion

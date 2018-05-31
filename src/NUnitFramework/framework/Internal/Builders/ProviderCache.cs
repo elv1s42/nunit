@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,7 @@ namespace NUnit.Framework.Internal.Builders
 {
     class ProviderCache
     {
-        private static Dictionary<CacheEntry, object> instances = new Dictionary<CacheEntry, object>();
+        private static readonly Dictionary<CacheEntry, object> instances = new Dictionary<CacheEntry, object>();
 
         public static object GetInstanceOf(Type providerType)
         {
@@ -65,7 +65,7 @@ namespace NUnit.Framework.Internal.Builders
 
         class CacheEntry
         {
-            private Type providerType;
+            private readonly Type providerType;
 
             public CacheEntry(Type providerType, object[] providerArgs)
             {

@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,11 +33,9 @@ namespace NUnit.Framework.Internal.Filters
     /// PropertyFilter is able to select or exclude tests
     /// based on their properties.
     /// </summary>
-    /// 
-    [Serializable]
-    public class PropertyFilter : ValueMatchFilter
+    internal class PropertyFilter : ValueMatchFilter
     {
-        private string _propertyName;
+        private readonly string _propertyName;
 
         /// <summary>
         /// Construct a PropertyFilter using a property name and expected value

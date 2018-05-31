@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,36 +22,36 @@
 // ***********************************************************************
 using System;
 using System.Collections.Generic;
-using System.Reflection;
+using System.Linq;
 using System.Text;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 
-namespace NUnit.Framework.Tests.Compatibility
+namespace NUnit.Framework.Compatibility
 {
-    /// <summary>
-    /// A series of unit tests to ensure that the type extensions in the portable
-    /// framework behave the same as their counterparts in the full framework
-    /// </summary>
-    [TestFixture]
-    public class ReflectionExtensionsTests
+    using System.Reflection;
+
+    partial class ReflectionExtensionsTests
     {
-        private static bool REALLY_RUNNING_ON_CF = false;
-
-#if NETCF
-        static ReflectionExtensionsTests()
-        {
-            // We may be running on the desktop using assembly unification
-            REALLY_RUNNING_ON_CF = Type.GetType("System.ConsoleColor") == null;
-        }
-#endif
-
         [Test]
         public void CanCallTypeInfoOnAllPlatforms()
         {
             var result = typeof(Object).GetTypeInfo();
             Assert.That(result, Is.Not.Null);
         }
+    }
+}
 
+namespace NUnit.Framework.Compatibility
+{
+    using BindingFlags = System.Reflection.BindingFlags;
+
+    /// <summary>
+    /// A series of unit tests to ensure that the type extensions in the .NET Standard
+    /// framework behave the same as their counterparts in the full framework
+    /// </summary>
+    [TestFixture]
+    public partial class ReflectionExtensionsTests
+    {
         [Test]
         public void CanGetGenericArguments()
         {
@@ -76,7 +76,7 @@ namespace NUnit.Framework.Tests.Compatibility
         [TestCase(typeof(string))]
         [TestCase(typeof(double))]
         [TestCase(typeof(int))]
-        public void CanGetContructorWithParams(Type paramType)
+        public void CanGetConstructorWithParams(Type paramType)
         {
             var result = typeof(DerivedTestClass).GetConstructor(new[] { paramType });
             Assert.That(result, Is.Not.Null);
@@ -147,22 +147,6 @@ namespace NUnit.Framework.Tests.Compatibility
         }
 
         [Test]
-        public void CanGetPrivatePropertiesOnBaseClassOnlyOnCF()
-        {
-            var result = typeof(DerivedTestClass).GetMember("Private", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(REALLY_RUNNING_ON_CF ? 1 : 0));
-        }
-
-        [Test]
-        public void CanGetPrivateMethodsOnBaseClassOnlyOnCF()
-        {
-            var result = typeof(DerivedTestClass).GetMember("Goodbye", BindingFlags.NonPublic | BindingFlags.Instance);
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Length, Is.EqualTo(REALLY_RUNNING_ON_CF ? 1 : 0));
-        }
-
-        [Test]
         public void CanGetPublicField()
         {
             var result = typeof(DerivedTestClass).GetField("_public");
@@ -218,6 +202,11 @@ namespace NUnit.Framework.Tests.Compatibility
         [TestCase(typeof(DerivedTestClass), "PubPriv", BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance, true)]
         [TestCase(typeof(BaseTestClass), "PubPriv", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance, false)]
         [TestCase(typeof(DerivedTestClass), "PubPriv", BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance, false)]
+
+        [TestCase(typeof(DerivedTestClass), "Protected", BindingFlags.NonPublic | BindingFlags.Instance, true)]
+        [TestCase(typeof(DerivedTestClass), "Internal", BindingFlags.NonPublic | BindingFlags.Instance, true)]
+        [TestCase(typeof(BaseTestClass), "Protected", BindingFlags.NonPublic | BindingFlags.Instance, true)]
+        [TestCase(typeof(BaseTestClass), "Internal", BindingFlags.NonPublic | BindingFlags.Instance, true)]
         public void CanGetPropertyWithBindingFlags(Type type, string name, BindingFlags flags, bool shouldFind)
         {
             var result = type.GetProperty(name, flags);
@@ -259,10 +248,78 @@ namespace NUnit.Framework.Tests.Compatibility
             Assert.AreEqual(shouldFind, result != null);
         }
 
-        public void CanGetStaticMethodsOnBase(BindingFlags flags)
+        [Test]
+        public void CanGetDerivedMethodsOnly()
         {
-            var result = typeof(DerivedTestClass).GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy);
-            foreach(var info in result)
+            var result = typeof(DerivedTestClass).GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public);
+            var methodNames = result.Select(m => m.Name);
+            CollectionAssert.AreEquivalent(new string[] { "Hello", "Hello", "DerivedInstanceMethod" }, methodNames);
+        }
+
+        [Test]
+        public void CanGetVirtualMethodsFromMostDerivedClassOnly()
+        {
+            var result = typeof(MostDerivedTestClass).GetMethods(BindingFlags.FlattenHierarchy | BindingFlags.Instance | BindingFlags.Public);
+            var methodNames = result.Where(m => m.Name == "Hello").Select(m => m.Name);
+
+            CollectionAssert.AreEquivalent(new string[] { "Hello", "Hello" }, methodNames);
+        }
+
+        [TestCase(BindingFlags.Instance | BindingFlags.Public,
+            new[] { "DerivedInstanceMethod", "InstanceMethod" },
+            new[] { "DerivedProtectedInstanceMethod", "DerivedPrivateInstanceMethod", "ProtectedInstanceMethod", "PrivateInstanceMethod" })]
+        [TestCase(BindingFlags.Instance | BindingFlags.NonPublic,
+            new[] { "DerivedProtectedInstanceMethod", "DerivedPrivateInstanceMethod", "ProtectedInstanceMethod" },
+            new[] { "DerivedInstanceMethod", "InstanceMethod", "PrivateInstanceMethod" })]
+        [TestCase(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly,
+            new[] { "DerivedInstanceMethod" },
+            new[] { "DerivedProtectedInstanceMethod", "DerivedPrivateInstanceMethod", "InstanceMethod", "ProtectedInstanceMethod", "PrivateInstanceMethod" })]
+        [TestCase(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly,
+            new[] { "DerivedProtectedInstanceMethod", "DerivedPrivateInstanceMethod" },
+            new[] { "InstanceMethod", "DerivedInstanceMethod", "ProtectedInstanceMethod", "PrivateInstanceMethod" })]
+        public void InstanceCanGetMethodsFromCurrentAndFromBaseClass(BindingFlags flags, string[] containElements, string[] wrongElements)
+        {
+            var result = typeof(DerivedTestClass).GetMethods(flags);
+            var methodNames = result.Select(m => m.Name);
+
+            CollectionAssert.IsSubsetOf(containElements, methodNames);
+            foreach (var wrongElement in wrongElements)
+            {
+                Assert.That(methodNames, Does.Not.Contain(wrongElement));
+            }
+        }
+
+        [TestCase(
+            BindingFlags.Static | BindingFlags.Public,
+            new[] { "DerivedStaticMethod" },
+            new[] { "DerivedProtectedStaticMethod", "DerivedPrivateStaticMethod" })]
+        [TestCase(
+            BindingFlags.Static | BindingFlags.NonPublic,
+            new[] { "DerivedProtectedStaticMethod", "DerivedPrivateStaticMethod" },
+            new[] { "DerivedStaticMethod" })]
+        [TestCase(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy,
+            new[] { "DerivedStaticMethod", "StaticMethod", },
+            new[] { "DerivedProtectedStaticMethod", "ProtectedStaticMethod" })]
+        [TestCase(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy,
+            new[] { "DerivedProtectedStaticMethod", "DerivedPrivateStaticMethod", "ProtectedStaticMethod" },
+            new[] { "DerivedStaticMethod", "StaticMethod" })]
+        public void StaticCanGetMethodsFromCurrentAndFromBaseClass(BindingFlags flags, string[] containElements, string[] wrongElements)
+        {
+            var result = typeof(DerivedTestClass).GetMethods(flags);
+            var methodNames = result.Select(m => m.Name);
+
+            CollectionAssert.IsSubsetOf(containElements, methodNames);
+            foreach (var wrongElement in wrongElements)
+            {
+                Assert.That(methodNames, Does.Not.Contain(wrongElement));
+            }
+        }
+
+        [Test]
+        public void CanGetStaticMethodsOnBase()
+        {
+            var result = typeof(DerivedTestClass).GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
+            foreach (var info in result)
             {
                 if (info.Name == "StaticMethod")
                     Assert.Pass();
@@ -295,7 +352,6 @@ namespace NUnit.Framework.Tests.Compatibility
             Assert.That(minfo != null, Is.EqualTo(shouldFind));
         }
 
-#if PORTABLE
         [Test]
         public void CanGetAttributesUsingAnInterface()
         {
@@ -304,7 +360,13 @@ namespace NUnit.Framework.Tests.Compatibility
             var attr = method.GetAttributes<ITestAction>(false);
             Assert.That(attr, Is.Not.Null);
         }
-#endif
+
+        [Test]
+        public void CanHandleNoGetterPropertyMember()
+        {
+            var result = typeof(NoGetterPropertyDerivedClass).GetMember("NoGetter", BindingFlags.Default);
+            Assert.That(result, Is.Not.Null);
+        }
     }
 
     public class BaseTestClass : IDisposable
@@ -312,6 +374,8 @@ namespace NUnit.Framework.Tests.Compatibility
         public static string StaticString { get; set; }
 
         protected string Protected { get; set; }
+
+        internal string Internal { get; set; }
 
         public string Name { get; set; }
 
@@ -327,7 +391,17 @@ namespace NUnit.Framework.Tests.Compatibility
 
         public virtual void Hello(string msg) { }
 
+        public void InstanceMethod() { }
+
+        protected void ProtectedInstanceMethod() { }
+
+        private void PrivateInstanceMethod() { }
+
         public static void StaticMethod() { }
+
+        protected static void ProtectedStaticMethod() { }
+
+        private static void PrivateStaticMethod() { }
 
         private void Goodbye(double d) { }
 
@@ -351,6 +425,25 @@ namespace NUnit.Framework.Tests.Compatibility
 
         private DerivedTestClass(StringBuilder name) : this(name.ToString()) { }
 
+        public void DerivedInstanceMethod() { }
+
+        protected void DerivedProtectedInstanceMethod() { }
+
+        private void DerivedPrivateInstanceMethod() { }
+
+        public static void DerivedStaticMethod() { }
+
+        protected static void DerivedProtectedStaticMethod() { }
+
+        private static void DerivedPrivateStaticMethod() { }
+
+        public override void Hello() { }
+
+        public override void Hello(string msg) { }
+    }
+
+    public class MostDerivedTestClass : DerivedTestClass
+    {
         public override void Hello() { }
 
         public override void Hello(string msg) { }
@@ -366,5 +459,14 @@ namespace NUnit.Framework.Tests.Compatibility
             PropertyOne = one;
             PropertyTwo = two;
         }
+    }
+
+    public class NoGetterPropertyBaseClass
+    {
+        public string NoGetter { set { } }
+    }
+
+    public class NoGetterPropertyDerivedClass : NoGetterPropertyBaseClass
+    {
     }
 }

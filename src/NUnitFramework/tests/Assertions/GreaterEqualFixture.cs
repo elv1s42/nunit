@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2006 Charlie Poole
+// Copyright (c) 2006 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -173,16 +173,9 @@ namespace NUnit.Framework.Assertions
         [Test]
         public void FailureMessage()
         {
-            string msg = null;
+            var ex = Assert.Throws<AssertionException>(() => Assert.GreaterOrEqual(7, 99));
 
-            try
-            {
-                Assert.GreaterOrEqual(7, 99);
-            }
-            catch (AssertionException ex)
-            {
-                msg = ex.Message;
-            }
+            var msg = ex.Message;
 
             StringAssert.Contains( TextMessageWriter.Pfx_Expected + "greater than or equal to 99", msg);
             StringAssert.Contains( TextMessageWriter.Pfx_Actual + "7", msg);

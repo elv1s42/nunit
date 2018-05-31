@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2012 Charlie Poole
+// Copyright (c) 2012 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,65 +33,73 @@ namespace NUnit.Framework.Internal.Execution
     /// </summary>
     public class TestWorker
     {
-        private static Logger log = InternalTrace.GetLogger("TestWorker");
+        private static readonly Logger log = InternalTrace.GetLogger("TestWorker");
 
-        private WorkItemQueue _readyQueue;
         private Thread _workerThread;
 
         private int _workItemCount = 0;
 
         private bool _running;
 
+        #region Events
+
+        /// <summary>
+        /// Event handler for TestWorker events
+        /// </summary>
+        /// <param name="worker">The TestWorker sending the event</param>
+        /// <param name="work">The WorkItem that caused the event</param>
+        public delegate void TestWorkerEventHandler(TestWorker worker, WorkItem work);
+
         /// <summary>
         /// Event signaled immediately before executing a WorkItem
         /// </summary>
-        public event EventHandler Busy;
+        public event TestWorkerEventHandler Busy;
 
         /// <summary>
         /// Event signaled immediately after executing a WorkItem
         /// </summary>
-        public event EventHandler Idle;
+        public event TestWorkerEventHandler Idle;
+
+        #endregion
+
+        #region Constructor
 
         /// <summary>
         /// Construct a new TestWorker.
         /// </summary>
         /// <param name="queue">The queue from which to pull work items</param>
         /// <param name="name">The name of this worker</param>
-        /// <param name="apartmentState">The apartment state to use for running tests</param>
-        public TestWorker(WorkItemQueue queue, string name
-#if !NETCF
-                          , ApartmentState apartmentState
-#endif
-                          )
+        public TestWorker(WorkItemQueue queue, string name)
         {
-            _readyQueue = queue;
+            Guard.ArgumentNotNull(queue, nameof(queue));
 
-            _workerThread = new Thread(new ThreadStart(TestWorkerThreadProc));
-            _workerThread.Name = name;
-#if !NETCF
-            _workerThread.SetApartmentState(apartmentState);
-#endif
+            WorkQueue = queue;
+            Name = name;
         }
+
+        #endregion
+
+        #region Properties
+
+        /// <summary>
+        /// The WorkItemQueue from which this worker pulls WorkItems
+        /// </summary>
+        public WorkItemQueue WorkQueue { get; }
 
         /// <summary>
         /// The name of this worker - also used for the thread
         /// </summary>
-        public string Name
-        {
-            get { return _workerThread.Name; }
-        }
+        public string Name { get; }
 
         /// <summary>
         /// Indicates whether the worker thread is running
         /// </summary>
         public bool IsAlive
         {
-#if NETCF
-            get { return !_workerThread.Join(0); }
-#else
             get { return _workerThread.IsAlive; }
-#endif
         }
+
+        #endregion
 
         /// <summary>
         /// Our ThreadProc, which pulls and runs tests in a loop
@@ -100,47 +108,62 @@ namespace NUnit.Framework.Internal.Execution
 
         private void TestWorkerThreadProc()
         {
-            log.Info("{0} starting ", _workerThread.Name);
-
             _running = true;
 
             try
             {
                 while (_running)
                 {
-                    _currentWorkItem = _readyQueue.Dequeue();
+                    _currentWorkItem = WorkQueue.Dequeue();
                     if (_currentWorkItem == null)
                         break;
 
-                    log.Info("{0} executing {1}", _workerThread.Name, _currentWorkItem.Test.Name);
+                    log.Info("{0} executing {1}", _workerThread.Name, _currentWorkItem.Name);
 
-                    if (Busy != null)
-                        Busy(this, EventArgs.Empty);
+                    _currentWorkItem.TestWorker = this;
 
-                    _currentWorkItem.WorkerId = Name;
+                    // During this Busy call, the queue state may be saved.
+                    // This gives us a new set of queues, which are initially 
+                    // empty. The intention is that only children of the current
+                    // executing item should make use of the new set of queues.
+                    // TODO: If we had a separate NonParallelTestWorker, it 
+                    // could simply create the isolated queue without any
+                    // worrying about competing workers.
+                    Busy(this, _currentWorkItem);
+
+                    // Because we execute the current item AFTER the queue state
+                    // is saved, its children end up in the new queue set.
                     _currentWorkItem.Execute();
 
-                    if (Idle != null)
-                        Idle(this, EventArgs.Empty);
+                    // This call may result in the queues being restored. There
+                    // is a potential race condition here. We should not restore
+                    // the queues unless all child items have finished.
+                    Idle(this, _currentWorkItem);
 
                     ++_workItemCount;
                 }
             }
             finally
             {
-                log.Info("{0} stopping - {1} WorkItems processed.", _workerThread.Name, _workItemCount);
+                log.Info("{0} stopping - {1} WorkItems processed.", Name, _workItemCount);
             }
         }
 
         /// <summary>
-        /// Start processing work items.
+        /// Create thread and start processing work items.
         /// </summary>
         public void Start()
         {
+            _workerThread = new Thread(new ThreadStart(TestWorkerThreadProc));
+            _workerThread.Name = Name;
+#if APARTMENT_STATE
+            _workerThread.SetApartmentState(WorkQueue.TargetApartment);
+#endif
+            log.Info("{0} starting on thread [{1}]", Name, _workerThread.ManagedThreadId);
             _workerThread.Start();
         }
 
-        private object cancelLock = new object();
+        private readonly object cancelLock = new object();
 
         /// <summary>
         /// Stop the thread, either immediately or after finishing the current WorkItem

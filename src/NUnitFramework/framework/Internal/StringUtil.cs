@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -41,12 +41,8 @@ namespace NUnit.Framework.Internal
         /// strB is sorted first</returns>
         public static int Compare(string strA, string strB, bool ignoreCase)
         {
-#if NETCF
-            return string.Compare(strA, strB, ignoreCase);
-#else
             var comparison = ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture;
             return string.Compare(strA, strB, comparison);
-#endif
         }
 
         /// <summary>

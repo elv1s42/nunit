@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2006 Charlie Poole
+// Copyright (c) 2006 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -23,17 +23,14 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using NUnit.Compatibility;
+using NUnit.Framework.Constraints;
 using NUnit.TestUtilities;
 using NUnit.TestUtilities.Collections;
 using NUnit.TestUtilities.Comparers;
-
-#if !SILVERLIGHT && !PORTABLE
-using System.Data;
-#endif
-
-#if !NET_2_0
-using System.Linq;
-#endif
 
 namespace NUnit.Framework.Assertions
 {
@@ -59,7 +56,7 @@ namespace NUnit.Framework.Assertions
             var expectedMessage =
                 "  Expected: all items instance of <System.String>" + Environment.NewLine +
                 "  But was:  < \"x\", \"y\", <System.Object> >" + Environment.NewLine;
-            
+
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.AllItemsAreInstancesOfType(collection,typeof(string)));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
@@ -126,15 +123,59 @@ namespace NUnit.Framework.Assertions
                 () => CollectionAssert.AllItemsAreUnique(new SimpleObjectCollection("x", null, "y", null, "z")));
         }
 
-        #endregion
+        [Test]
+        public void UniqueFailure_ElementTypeIsObject_NUnitEqualityIsUsed()
+        {
+            var collection = new List<object> { 42, null, 42f };
+            Assert.Throws<AssertionException>(() => CollectionAssert.AllItemsAreUnique(collection));
+        }
 
-        #region AreEqual
+        [Test]
+        public void UniqueFailure_ElementTypeIsInterface_NUnitEqualityIsUsed()
+        {
+            var collection = new List<IConvertible> { 42, null, 42f };
+            Assert.Throws<AssertionException>(() => CollectionAssert.AllItemsAreUnique(collection));
+        }
+
+        [Test]
+        public void UniqueFailure_ElementTypeIsStruct_ImplicitCastAndNewAlgorithmIsUsed()
+        {
+            var collection = new List<float> { 42, 42f };
+            Assert.Throws<AssertionException>(() => CollectionAssert.AllItemsAreUnique(collection));
+        }
+
+        [Test]
+        public void UniqueFailure_ElementTypeIsNotSealed_NUnitEqualityIsUsed()
+        {
+            var collection = new List<ValueType> { 42, 42f };
+            Assert.Throws<AssertionException>(() => CollectionAssert.AllItemsAreUnique(collection));
+        }
+
+        static readonly IEnumerable<int> RANGE = Enumerable.Range(0, 10000);
+
+        static readonly IEnumerable[] PerformanceData =
+        {
+            RANGE,
+            new List<int>(RANGE),
+            new List<double>(RANGE.Select(v => (double)v)),
+            new List<string>(RANGE.Select(v => v.ToString()))
+        };
+
+        [TestCaseSource(nameof(PerformanceData))]
+        public void PerformanceTests(IEnumerable values)
+        {
+            Warn.Unless(() => CollectionAssert.AllItemsAreUnique(values), HelperConstraints.HasMaxTime(100));
+        }
+
+#endregion
+
+#region AreEqual
 
         [Test]
         public void AreEqual()
         {
-            var set1 = new SimpleObjectCollection("x", "y", "z");
-            var set2 = new SimpleObjectCollection("x", "y", "z");
+            var set1 = new SimpleEnumerable("x", "y", "z");
+            var set2 = new SimpleEnumerable("x", "y", "z");
 
             CollectionAssert.AreEqual(set1,set2);
             CollectionAssert.AreEqual(set1,set2,new TestComparer());
@@ -209,6 +250,35 @@ namespace NUnit.Framework.Assertions
             CollectionAssert.AreEqual(array, CountToThree());
         }
 
+        [Test]
+        public void AreEqualFails_ObjsUsingIEquatable()
+        {
+            IEnumerable set1 = new SimpleEnumerableWithIEquatable("x", "y", "z");
+            IEnumerable set2 = new SimpleEnumerableWithIEquatable("x", "z", "z");
+
+            CollectionAssert.AreNotEqual(set1, set2);
+
+            Assert.Throws<AssertionException>(() => CollectionAssert.AreEqual(set1, set2));
+        }
+
+        [Test]
+        public void IEnumerablesAreEqualWithCollectionsObjectsImplemetingIEquatable()
+        {
+            IEnumerable set1 = new SimpleEnumerable(new SimpleIEquatableObj());
+            IEnumerable set2 = new SimpleEnumerable(new SimpleIEquatableObj());
+
+            CollectionAssert.AreEqual(set1, set2);
+        }
+
+        [Test]
+        public void ArraysAreEqualWithCollectionsObjectsImplementingIEquatable()
+        {
+            SimpleIEquatableObj[] set1 = new SimpleIEquatableObj[] { new SimpleIEquatableObj() };
+            SimpleIEquatableObj[] set2 = new SimpleIEquatableObj[] { new SimpleIEquatableObj() };
+
+            CollectionAssert.AreEqual(set1, set2);
+        }
+
         IEnumerable CountToThree()
         {
             yield return 1;
@@ -220,41 +290,56 @@ namespace NUnit.Framework.Assertions
         public void AreEqual_UsingIterator_Fails()
         {
             int[] array = new int[] { 1, 3, 5 };
- 
-            AssertionException ex = Assert.Throws<AssertionException>( 
+
+            AssertionException ex = Assert.Throws<AssertionException>(
                 delegate { CollectionAssert.AreEqual(array, CountToThree()); } );
-            
+
             Assert.That(ex.Message, Does.Contain("Values differ at index [1]").And.
                                     Contains("Expected: 3").And.
                                     Contains("But was:  2"));
         }
- 
-#if !NET_2_0
+
+#if !NET20
         [Test]
         public void AreEqual_UsingLinqQuery()
         {
             int[] array = new int[] { 1, 2, 3 };
- 
+
             CollectionAssert.AreEqual(array, array.Select((item) => item));
         }
- 
+
         [Test]
         public void AreEqual_UsingLinqQuery_Fails()
         {
             int[] array = new int[] { 1, 2, 3 };
- 
+
             AssertionException ex = Assert.Throws<AssertionException>(
                 delegate { CollectionAssert.AreEqual(array, array.Select((item) => item * 2)); } );
-            
+
             Assert.That(ex.Message, Does.Contain("Values differ at index [0]").And.
                                     Contains("Expected: 1").And.
                                     Contains("But was:  2"));
         }
 #endif
-        
-        #endregion
 
-        #region AreEquivalent
+        [Test]
+        public void AreEqual_IEquatableImplementationIsIgnored()
+        {
+            var x = new Constraints.EquatableWithEnumerableObject<int>(new[] { 1, 2, 3, 4, 5 }, 42);
+            var y = new Constraints.EnumerableObject<int>(new[] { 1, 2, 3, 4, 5 }, 15);
+
+            // They are not equal using Assert
+            Assert.AreNotEqual(x, y, "Assert 1");
+            Assert.AreNotEqual(y, x, "Assert 2");
+
+            // Using CollectionAssert they are equal
+            CollectionAssert.AreEqual(x, y, "CollectionAssert 1");
+            CollectionAssert.AreEqual(y, x, "CollectionAssert 2");
+        }
+
+#endregion
+
+#region AreEquivalent
 
         [Test]
         public void Equivalent()
@@ -273,7 +358,9 @@ namespace NUnit.Framework.Assertions
 
             var expectedMessage =
                 "  Expected: equivalent to < \"x\", \"y\", \"z\" >" + Environment.NewLine +
-                "  But was:  < \"x\", \"y\", \"x\" >" + Environment.NewLine;
+                "  But was:  < \"x\", \"y\", \"x\" >" + Environment.NewLine +
+                "  Missing (1): < \"z\" >" + Environment.NewLine +
+                "  Extra (1): < \"x\" >" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.AreEquivalent(set1,set2));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -284,10 +371,12 @@ namespace NUnit.Framework.Assertions
         {
             ICollection set1 = new SimpleObjectCollection("x", "y", "x");
             ICollection set2 = new SimpleObjectCollection("x", "y", "z");
-            
+
             var expectedMessage =
                 "  Expected: equivalent to < \"x\", \"y\", \"x\" >" + Environment.NewLine +
-                "  But was:  < \"x\", \"y\", \"z\" >" + Environment.NewLine;
+                "  But was:  < \"x\", \"y\", \"z\" >" + Environment.NewLine +
+                "  Missing (1): < \"x\" >" + Environment.NewLine +
+                "  Extra (1): < \"z\" >" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.AreEquivalent(set1,set2));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -298,12 +387,12 @@ namespace NUnit.Framework.Assertions
         {
             ICollection set1 = new SimpleObjectCollection(null, "x", null, "z");
             ICollection set2 = new SimpleObjectCollection("z", null, "x", null);
-            
+
             CollectionAssert.AreEquivalent(set1,set2);
         }
-        #endregion
+#endregion
 
-        #region AreNotEqual
+#region AreNotEqual
 
         [Test]
         public void AreNotEqual()
@@ -325,7 +414,7 @@ namespace NUnit.Framework.Assertions
             var set1 = new SimpleObjectCollection("x", "y", "z");
             var set2 = new SimpleObjectCollection("x", "y", "z");
 
-            var expectedMessage = 
+            var expectedMessage =
                 "  Expected: not equal to < \"x\", \"y\", \"z\" >" + Environment.NewLine +
                 "  But was:  < \"x\", \"y\", \"z\" >" + Environment.NewLine;
 
@@ -343,9 +432,24 @@ namespace NUnit.Framework.Assertions
             CollectionAssert.AreNotEqual(set1,set2,new TestComparer());
         }
 
-        #endregion
+        [Test]
+        public void AreNotEqual_IEquatableImplementationIsIgnored()
+        {
+            var x = new Constraints.EquatableWithEnumerableObject<int>(new[] { 1, 2, 3, 4, 5 }, 42);
+            var y = new Constraints.EnumerableObject<int>(new[] { 5, 4, 3, 2, 1 }, 42);
 
-        #region AreNotEquivalent
+            // Equal using Assert
+            Assert.AreEqual(x, y, "Assert 1");
+            Assert.AreEqual(y, x, "Assert 2");
+
+            // Not equal using CollectionAssert
+            CollectionAssert.AreNotEqual(x, y, "CollectionAssert 1");
+            CollectionAssert.AreNotEqual(y, x, "CollectionAssert 2");
+        }
+
+#endregion
+
+#region AreNotEquivalent
 
         [Test]
         public void NotEquivalent()
@@ -378,9 +482,9 @@ namespace NUnit.Framework.Assertions
 
             CollectionAssert.AreNotEquivalent(set1,set2);
         }
-        #endregion
+#endregion
 
-        #region Contains
+#region Contains
         [Test]
         public void Contains_IList()
         {
@@ -401,7 +505,7 @@ namespace NUnit.Framework.Assertions
             var list = new SimpleObjectList("x", "y", "z");
 
             var expectedMessage =
-                "  Expected: collection containing \"a\"" + Environment.NewLine +
+                "  Expected: some item equal to \"a\"" + Environment.NewLine +
                 "  But was:  < \"x\", \"y\", \"z\" >" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.Contains(list,"a"));
@@ -414,7 +518,7 @@ namespace NUnit.Framework.Assertions
             var collection = new SimpleObjectCollection("x", "y", "z");
 
             var expectedMessage =
-                "  Expected: collection containing \"a\"" + Environment.NewLine +
+                "  Expected: some item equal to \"a\"" + Environment.NewLine +
                 "  But was:  < \"x\", \"y\", \"z\" >" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.Contains(collection,"a"));
@@ -427,7 +531,7 @@ namespace NUnit.Framework.Assertions
             var list = new SimpleObjectList();
 
             var expectedMessage =
-                "  Expected: collection containing \"x\"" + Environment.NewLine +
+                "  Expected: some item equal to \"x\"" + Environment.NewLine +
                 "  But was:  <empty>" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.Contains(list,"x"));
@@ -440,7 +544,7 @@ namespace NUnit.Framework.Assertions
             var ca = new SimpleObjectCollection(new object[0]);
 
             var expectedMessage =
-                "  Expected: collection containing \"x\"" + Environment.NewLine +
+                "  Expected: some item equal to \"x\"" + Environment.NewLine +
                 "  But was:  <empty>" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.Contains(ca,"x"));
@@ -460,9 +564,9 @@ namespace NUnit.Framework.Assertions
             var ca = new SimpleObjectCollection(new object[] { 1, 2, 3, null, 4, 5 });
             CollectionAssert.Contains( ca, null );
         }
-        #endregion
+#endregion
 
-        #region DoesNotContain
+#region DoesNotContain
         [Test]
         public void DoesNotContain()
         {
@@ -482,16 +586,16 @@ namespace NUnit.Framework.Assertions
         {
             var list = new SimpleObjectList("x", "y", "z");
 
-            var expectedMessage = 
-                "  Expected: not collection containing \"y\"" + Environment.NewLine +
+            var expectedMessage =
+                "  Expected: not some item equal to \"y\"" + Environment.NewLine +
                 "  But was:  < \"x\", \"y\", \"z\" >" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.DoesNotContain(list,"y"));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
-        #endregion
+#endregion
 
-        #region IsSubsetOf
+#region IsSubsetOf
         [Test]
         public void IsSubsetOf()
         {
@@ -525,9 +629,9 @@ namespace NUnit.Framework.Assertions
             CollectionAssert.IsSubsetOf(set2,set1);
             Assert.That(set2, Is.SubsetOf(set1));
         }
-        #endregion
+#endregion
 
-        #region IsNotSubsetOf
+#region IsNotSubsetOf
         [Test]
         public void IsNotSubsetOf()
         {
@@ -551,7 +655,7 @@ namespace NUnit.Framework.Assertions
             var ex = Assert.Throws<AssertionException>(() => CollectionAssert.IsNotSubsetOf(set2,set1));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
-        
+
         [Test]
         public void IsNotSubsetOfHandlesNull()
         {
@@ -560,9 +664,9 @@ namespace NUnit.Framework.Assertions
 
             CollectionAssert.IsNotSubsetOf(set1,set2);
         }
-        #endregion
+#endregion
 
-        #region IsOrdered
+#region IsOrdered
 
         [Test]
         public void IsOrdered()
@@ -594,10 +698,9 @@ namespace NUnit.Framework.Assertions
         [Test]
         public void IsOrdered_Handles_null()
         {
-            var list = new SimpleObjectList("x", null, "z");
+            var list = new SimpleObjectList(null, "x", "z");
 
-            var ex = Assert.Throws<ArgumentNullException>(() => CollectionAssert.IsOrdered(list));
-            Assert.That(ex.Message, Does.Contain("index 1"));
+            Assert.That(list, Is.Ordered);
         }
 
         [Test]
@@ -628,9 +731,9 @@ namespace NUnit.Framework.Assertions
             CollectionAssert.IsOrdered(list, new TestComparer());
         }
 
-        #endregion
+#endregion
 
-        #region Equals
+#region Equals
 
         [Test]
         public void EqualsFailsWhenUsed()
@@ -645,7 +748,38 @@ namespace NUnit.Framework.Assertions
             var ex = Assert.Throws<InvalidOperationException>(() => CollectionAssert.ReferenceEquals(string.Empty, string.Empty));
             Assert.That(ex.Message, Does.StartWith("CollectionAssert.ReferenceEquals should not be used for Assertions"));
         }
-        #endregion
+#endregion
 
+#if NET45
+#region ValueTuple
+        [Test]
+        public void ValueTupleAreEqual()
+        {
+            var set1 = new SimpleEnumerable(ValueTuple.Create(1,2,3), ValueTuple.Create(1, 2, 3), ValueTuple.Create(1, 2, 3));
+            var set2 = new SimpleEnumerable(ValueTuple.Create(1,2,3), ValueTuple.Create(1, 2, 3), ValueTuple.Create(1, 2, 3));
+
+            CollectionAssert.AreEqual(set1, set2);
+            CollectionAssert.AreEqual(set1, set2, new TestComparer());
+
+            Assert.AreEqual(set1, set2);
+        }
+
+        [Test]
+        public void ValueTupleAreEqualFail()
+        {
+            var set1 = new SimpleEnumerable(ValueTuple.Create(1, 2, 3), ValueTuple.Create(1, 2, 3), ValueTuple.Create(1, 2, 3));
+            var set2 = new SimpleEnumerable(ValueTuple.Create(1, 2, 3), ValueTuple.Create(1, 2, 3), ValueTuple.Create(1, 2, 4));
+
+            var expectedMessage =
+                "  Expected and actual are both <NUnit.TestUtilities.Collections.SimpleEnumerable>" + Environment.NewLine +
+                "  Values differ at index [2]" + Environment.NewLine +
+                "  Expected: (1, 2, 3)" + Environment.NewLine +
+                "  But was:  (1, 2, 4)" + Environment.NewLine;
+
+            var ex = Assert.Throws<AssertionException>(() => CollectionAssert.AreEqual(set1, set2, new TestComparer()));
+            Assert.That(ex.Message, Is.EqualTo(expectedMessage));
+        }
+#endregion
+#endif
     }
 }

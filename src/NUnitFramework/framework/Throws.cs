@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -31,7 +31,8 @@ namespace NUnit.Framework
     /// Helper class with properties and methods that supply
     /// constraints that operate on exceptions.
     /// </summary>
-    public class Throws
+    // Abstract because we support syntax extension by inheriting and declaring new static members.
+    public abstract class Throws
     {
         #region Exception
 
@@ -84,7 +85,7 @@ namespace NUnit.Framework
         #region ArgumentNullException
 
         /// <summary>
-        /// Creates a constraint specifying an expected ArgumentNUllException
+        /// Creates a constraint specifying an expected ArgumentNullException
         /// </summary>
         public static ExactTypeConstraint ArgumentNullException
         {
@@ -130,7 +131,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Creates a constraint specifying the exact type of exception expected
         /// </summary>
-        public static ExactTypeConstraint TypeOf<TExpected>()
+        public static ExactTypeConstraint TypeOf<TExpected>() where TExpected: Exception
         {
             return TypeOf(typeof(TExpected));
         }
@@ -150,7 +151,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Creates a constraint specifying the type of exception expected
         /// </summary>
-        public static InstanceOfTypeConstraint InstanceOf<TExpected>()
+        public static InstanceOfTypeConstraint InstanceOf<TExpected>() where TExpected: Exception
         {
             return InstanceOf(typeof(TExpected));
         }

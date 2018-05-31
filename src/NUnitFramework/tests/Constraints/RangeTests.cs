@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,6 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
+using NUnit.TestUtilities.Comparers;
 using System;
 
 namespace NUnit.Framework.Constraints
@@ -41,7 +42,7 @@ namespace NUnit.Framework.Constraints
         public void InRangeFails()
         {
             string expectedMessage = string.Format("  Expected: in range (5,10){0}  But was:  12{0}",
-                    Env.NewLine);
+                    Environment.NewLine);
 
             Assert.That(
                 new TestDelegate( FailingInRangeMethod ),
@@ -64,7 +65,7 @@ namespace NUnit.Framework.Constraints
         public void NotInRangeFails()
         {
             string expectedMessage = string.Format("  Expected: not in range (5,10){0}  But was:  7{0}",
-                    Env.NewLine);
+                    Environment.NewLine);
 
             Assert.That(
                 new TestDelegate(FailingNotInRangeMethod),
@@ -102,5 +103,76 @@ namespace NUnit.Framework.Constraints
         {
             Assert.That(val, Is.InRange(min, max));
         }
+
+        [Test, TestCaseSource(nameof(InRangeObjectsWithNoIComparable))]
+        public void InRangeNoIComparableTest(object testObj, object from, object to, ObjectToStringComparer comparer)
+        {
+            Assert.That(testObj, Is.InRange(from, to).Using(comparer));
+            Assert.AreEqual(comparer.WasCalled, true);
+        }
+
+        [Test, TestCaseSource(nameof(NotInRangeObjectsWithNoIComparable))]
+        public void NotInRangeNoIComparableTest(object testObj, object from, object to, ObjectToStringComparer comparer)
+        {
+            Assert.That(testObj, Is.Not.InRange(from, to).Using(comparer));
+            Assert.AreEqual(comparer.WasCalled, true);
+        }
+        [TestCaseSource(nameof(InRangeObjectsWithNoIComparableAndNotUsingComparerException))]
+        public void InRangeNoIComparableThrowsExceptionTest(object testObj, object from, object to)
+        {
+            Assert.Throws<ArgumentException>(() => Assert.That(testObj, Is.InRange(from, to)));
+        }
+        [TestCaseSource(nameof(InRangeObjectsWithNoIComparableAndNotUsingComparerException))]
+        public void NotInRangeNoIComparableThrowsExceptionTest(object testObj, object from, object to)
+        {
+            Assert.Throws<ArgumentException>(() => Assert.That(testObj, Is.Not.InRange(from, to)));
+        }
+
+        #region TestCaseSources
+        private static System.Collections.IEnumerable InRangeObjectsWithNoIComparableAndNotUsingComparerException()
+        {
+            var testObj = new NoComparer("M");
+            var from = new NoComparer("A");
+            var to = new NoComparer("Z");
+            var obj1 = new NoComparer(1);
+            var obj30 = new NoComparer(30);
+            var obj46 = new NoComparer(46);
+            yield return new object[] { testObj, from, to};
+            yield return new object[] { obj30, obj1, obj46 };
+            yield return new object[] { testObj, to, from };
+            yield return new object[] { obj30, obj46, obj1 };
+        }
+        private static System.Collections.IEnumerable InRangeObjectsWithNoIComparable()
+        {
+            var objN7 = new NoComparer(-7);
+            var objN5 = new NoComparer(-5);
+            var obj0 = new NoComparer(0);
+            var obj1 = new NoComparer(1);
+            var obj30 = new NoComparer(30);
+            var obj46 = new NoComparer(46);
+            var objA = new NoComparer("A");
+            var comparer = new ObjectToStringComparer();
+            yield return new object[] { obj46, obj0, objA, comparer };
+            yield return new object[] { obj30, obj1, obj46, comparer };
+            yield return new object[] { obj0, obj0, obj0, comparer };
+            yield return new object[] { obj0, objN5, obj46, comparer };
+            yield return new object[] { objN5, objN5, objN5, comparer };
+            yield return new object[] { objN5, objN7, obj0 , comparer };
+        }
+
+        private static System.Collections.IEnumerable NotInRangeObjectsWithNoIComparable()
+        {
+            var objN5 = new NoComparer(-5);
+            var obj0 = new NoComparer(0);
+            var obj30 = new NoComparer(30);
+            var objA = new NoComparer("A");
+            var objM = new NoComparer("M");
+            var objZ = new NoComparer("Z");
+            var comparer = new ObjectToStringComparer();
+            yield return new object[] { objN5, obj0, objA, comparer };
+            yield return new object[] { objN5, obj0, obj30, comparer };
+            yield return new object[] { objA, objM, objZ, comparer };
+        }
+        #endregion
     }
 }

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,7 @@ namespace NUnit.Framework.Internal
     [TestFixture]
     public class TextMessageWriterTests
     {
-        private static readonly string NL = NUnit.Env.NewLine;
+        private static readonly string NL = Environment.NewLine;
 
         private TextMessageWriter writer;
 
@@ -92,6 +92,20 @@ namespace NUnit.Framework.Internal
 
             writer.WriteMessageLine(0, message, arg0);
             message = writer.ToString();
+
+            Assert.That(message, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void WriteMessageLine_EmbeddedNonNullControlChars()
+        {
+            string expected, message;
+
+            expected = message = "Here we have embedded control characters \b\f in the string!";
+
+            writer.WriteMessageLine(0, message, null);
+            message = writer.ToString();
+            expected = "  " + expected.Replace("\0", "\\0") + NL;
 
             Assert.That(message, Is.EqualTo(expected));
         }

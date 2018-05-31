@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,20 +22,19 @@
 // ***********************************************************************
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Xml;
 using System.IO;
-using NUnit.Common;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 
 namespace NUnitLite
 {
     /// <summary>
-    /// NUnit2XmlOutputWriter is able to create an xml file representing
+    /// NUnit2XmlOutputWriter is able to create an XML file representing
     /// the result of a test run in NUnit 2.x format.
     /// </summary>
     public class NUnit2XmlOutputWriter : OutputWriter
@@ -57,25 +56,14 @@ namespace NUnitLite
         /// </summary>
         /// <param name="result">The test result for the run</param>
         /// <param name="writer">The TextWriter to which the xml will be written</param>
-        public override void WriteResultFile(ITestResult result, TextWriter writer, IDictionary runSettings, TestFilter filter)
+        /// <param name="runSettings"></param>
+        /// <param name="filter"></param>
+        public override void WriteResultFile(ITestResult result, TextWriter writer, IDictionary<string, object> runSettings, TestFilter filter)
         {
-            // NOTE: Under .NET 1.1, XmlTextWriter does not implement IDisposable,
-            // but does implement Close(). Hence we cannot use a 'using' clause.
-            //using (XmlTextWriter xmlWriter = new XmlTextWriter(writer))
-#if SILVERLIGHT
-            XmlWriter xmlWriter = XmlWriter.Create(writer);
-#else
-            XmlTextWriter xmlWriter = new XmlTextWriter(writer);
-            xmlWriter.Formatting = Formatting.Indented;
-#endif
-
-            try
+            var settings = new XmlWriterSettings { Indent = true };
+            using (var xmlWriter = XmlWriter.Create(writer, settings))
             {
                 WriteXmlOutput(result, xmlWriter);
-            }
-            finally
-            {
-                writer.Close();
             }
         }
 
@@ -127,26 +115,36 @@ namespace NUnitLite
         private void WriteEnvironment()
         {
             xmlWriter.WriteStartElement("environment");
-            var assemblyName = AssemblyHelper.GetAssemblyName(Assembly.GetExecutingAssembly());
+            var assemblyName = AssemblyHelper.GetAssemblyName(typeof(NUnit2XmlOutputWriter).GetTypeInfo().Assembly);
             xmlWriter.WriteAttributeString("nunit-version",
                                            assemblyName.Version.ToString());
+#if NETSTANDARD1_6
             xmlWriter.WriteAttributeString("clr-version",
-                                           Environment.Version.ToString());
+                                           System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+#else
+            xmlWriter.WriteAttributeString("clr-version",
+                Environment.Version.ToString());
+#endif
+#if !PLATFORM_DETECTION
             xmlWriter.WriteAttributeString("os-version",
-                                           Environment.OSVersion.ToString());
+                                           System.Runtime.InteropServices.RuntimeInformation.OSDescription);
+#else
+            xmlWriter.WriteAttributeString("os-version",
+                                           OSPlatform.CurrentPlatform.ToString());
+#endif
+#if !NETSTANDARD1_6
             xmlWriter.WriteAttributeString("platform",
                 Environment.OSVersion.Platform.ToString());
-#if !NETCF
+#endif
             xmlWriter.WriteAttributeString("cwd",
-                                           Environment.CurrentDirectory);
-#if !SILVERLIGHT
+                                           Directory.GetCurrentDirectory());
             xmlWriter.WriteAttributeString("machine-name",
                                            Environment.MachineName);
+#if !NETSTANDARD1_6
             xmlWriter.WriteAttributeString("user",
                                            Environment.UserName);
             xmlWriter.WriteAttributeString("user-domain",
                                            Environment.UserDomainName);
-#endif
 #endif
             xmlWriter.WriteEndElement();
         }
@@ -168,7 +166,7 @@ namespace NUnitLite
                     WriteFailureElement(result.Message, result.StackTrace);
                     break;
             }
-            
+
             if (result.Test is TestSuite)
                 WriteChildResults(result);
 
@@ -180,7 +178,7 @@ namespace NUnitLite
             xmlWriter.WriteEndElement(); // test-results
             xmlWriter.WriteEndDocument();
             xmlWriter.Flush();
-            xmlWriter.Close();
+            ((IDisposable)xmlWriter).Dispose();
         }
 
 
@@ -194,7 +192,7 @@ namespace NUnitLite
             if (suite != null)
             {
                 xmlWriter.WriteStartElement("test-suite");
-                xmlWriter.WriteAttributeString("type", suite.TestType);
+                xmlWriter.WriteAttributeString("type", suite.TestType == "ParameterizedMethod" ? "ParameterizedTest" : suite.TestType);
                 xmlWriter.WriteAttributeString("name", suite.TestType == "Assembly" || suite.TestType == "Project"
                     ? result.Test.FullName
                     : result.Test.Name);
@@ -337,9 +335,9 @@ namespace NUnitLite
             xmlWriter.WriteEndElement();
         }
 
-        #endregion
+#endregion
 
-        #region Output Helpers
+#region Output Helpers
         ///// <summary>
         ///// Makes string safe for xml parsing, replacing control chars with '?'
         ///// </summary>
@@ -393,6 +391,6 @@ namespace NUnitLite
                 xmlWriter.WriteCData(text);
         }
 
-        #endregion
+#endregion
     }
 }

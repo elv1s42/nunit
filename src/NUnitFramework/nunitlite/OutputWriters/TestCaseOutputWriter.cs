@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -52,7 +53,9 @@ namespace NUnitLite
         /// </summary>
         /// <param name="result"></param>
         /// <param name="writer"></param>
-        public override void WriteResultFile(ITestResult result, TextWriter writer, IDictionary runSettings, TestFilter filter)
+        /// <param name="runSettings"></param>
+        /// <param name="filter"></param>
+        public override void WriteResultFile(ITestResult result, TextWriter writer, IDictionary<string, object> runSettings, TestFilter filter)
         {
             WriteTestFile(result.Test, writer);
         }

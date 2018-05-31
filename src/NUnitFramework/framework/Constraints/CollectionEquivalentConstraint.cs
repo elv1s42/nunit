@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 using System;
 using System.Collections;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -31,18 +32,27 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public class CollectionEquivalentConstraint : CollectionItemsEqualConstraint
     {
-        private readonly IEnumerable expected;
+        private readonly IEnumerable _expected;
 
-        /// <summary>
-        /// Construct a CollectionEquivalentConstraint
-        /// </summary>
-        /// <param name="expected"></param>
+        /// <summary>The result of the <see cref="CollectionTally"/> from the collections
+        /// under comparison.</summary>
+        private CollectionTally.CollectionTallyResult _tallyResult;
+
+        /// <summary>Construct a CollectionEquivalentConstraint</summary>
+        /// <param name="expected">Expected collection.</param>
         public CollectionEquivalentConstraint(IEnumerable expected)
             : base(expected)
         {
-            this.expected = expected;
-            this.DisplayName = "Equivalent";
+            _expected = expected;
         }
+
+        /// <summary> 
+        /// The display name of this Constraint for use by ToString().
+        /// The default value is the name of the constraint with
+        /// trailing "Constraint" removed. Derived classes may set
+        /// this to another name in their constructors.
+        /// </summary>
+        public override string DisplayName { get { return "Equivalent"; } }
 
         /// <summary>
         /// The Description of what this constraint tests, for
@@ -50,7 +60,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override string Description
         {
-            get { return "equivalent to " + MsgUtils.FormatValue(expected); }
+            get { return "equivalent to " + MsgUtils.FormatValue(_expected); }
         }
 
         /// <summary>
@@ -60,13 +70,36 @@ namespace NUnit.Framework.Constraints
         /// <returns></returns>
         protected override bool Matches(IEnumerable actual)
         {
-            // This is just an optimization
-            if (expected is ICollection && actual is ICollection)
-                if (((ICollection)actual).Count != ((ICollection)expected).Count)
-                    return false;
+            CollectionTally ct = Tally(_expected);
+            ct.TryRemove(actual);
 
-            CollectionTally tally = Tally(expected);
-            return tally.TryRemove(actual) && tally.Count == 0;
+            //Store the CollectionTallyResult so the comparison between the two collections
+            //is only performed once.
+            _tallyResult = ct.Result;
+
+            return ((_tallyResult.ExtraItems.Count == 0) && (_tallyResult.MissingItems.Count == 0));
+        }
+
+        /// <summary>
+        /// Test whether the collection is equivalent to the expected.
+        /// </summary>
+        /// <typeparam name="TActual">
+        /// Actual collection type.
+        /// </typeparam>
+        /// <param name="actual">
+        /// Actual collection to compare.
+        /// </param>
+        /// <returns>
+        /// A <see cref="CollectionEquivalentConstraintResult"/> indicating whether or not
+        /// the two collections are equivalent.
+        /// </returns>
+        public override ConstraintResult ApplyTo<TActual>(TActual actual)
+        {
+            IEnumerable enumerable = ConstraintUtils.RequireActual<IEnumerable>(actual, nameof(actual));
+            bool matchesResult = Matches(enumerable);
+
+            return new CollectionEquivalentConstraintResult(
+                this, _tallyResult, actual, matchesResult);
         }
 
         /// <summary>

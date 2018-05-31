@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -79,7 +79,7 @@ namespace NUnit.Framework.Constraints
 
     class ClassWithIComparable : IComparable
     {
-        private int val;
+        private readonly int val;
 
         public ClassWithIComparable(int val)
         {
@@ -98,7 +98,7 @@ namespace NUnit.Framework.Constraints
 
     class ClassWithIComparableOfT : IComparable<ClassWithIComparableOfT>
     {
-        private int val;
+        private readonly int val;
 
         public ClassWithIComparableOfT(int val)
         {

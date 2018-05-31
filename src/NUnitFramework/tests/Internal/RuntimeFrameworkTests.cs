@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
+#if !(NETCOREAPP1_1 || NETCOREAPP2_0)
 using System;
 using System.Reflection;
 
@@ -30,16 +30,10 @@ namespace NUnit.Framework.Internal
     [TestFixture]
     public class RuntimeFrameworkTests
     {
-        static RuntimeType currentRuntime =
-#if SILVERLIGHT
-            RuntimeType.Silverlight;
-#else
+        static readonly RuntimeType currentRuntime =
             Type.GetType("Mono.Runtime", false) != null
                 ? RuntimeType.Mono
-                : Environment.OSVersion.Platform == PlatformID.WinCE
-                    ? RuntimeType.NetCF
-                    : RuntimeType.Net;
-#endif
+                : RuntimeType.Net;
 
         [Test]
         public void CanGetCurrentFramework()
@@ -47,20 +41,10 @@ namespace NUnit.Framework.Internal
             RuntimeFramework framework = RuntimeFramework.CurrentFramework;
 
             Assert.That(framework.Runtime, Is.EqualTo(currentRuntime), "#1");
-#if SILVERLIGHT
-            Version silverlightVersion = new Version(Environment.Version.Major, Environment.Version.Minor);
-            Version clrVersion = Environment.Version.Major >= 4
-                ? new Version(4,0,60310)
-                : new Version(2,0,50727);
-
-            Assert.That(framework.FrameworkVersion, Is.EqualTo(silverlightVersion));
-            Assert.That(framework.ClrVersion, Is.EqualTo(clrVersion));
-#else
             Assert.That(framework.ClrVersion, Is.EqualTo(Environment.Version), "#2");
-#endif
         }
 
-#if NET_4_5
+#if NET45
         [Test]
         public void TargetFrameworkIsSetCorrectly()
         {
@@ -80,7 +64,7 @@ namespace NUnit.Framework.Internal
             var uriStr = uri.ToString();
             Assert.AreEqual( "http://host.com/path./", uriStr );
         }
-#elif NET_4_0
+#elif NET40
         [Test]
         [Platform(Exclude = "Mono", Reason = "Mono does not run assemblies targeting 4.0 in compatibility mode")]
         public void RunsIn40CompatibilityModeWhenCompiled40()
@@ -97,7 +81,7 @@ namespace NUnit.Framework.Internal
             Assert.That(RuntimeFramework.CurrentFramework.ClrVersion.Build, Is.GreaterThan(0));
         }
 
-        [TestCaseSource("frameworkData")]
+        [TestCaseSource(nameof(frameworkData))]
         public void CanCreateUsingFrameworkVersion(FrameworkData data)
         {
             RuntimeFramework framework = new RuntimeFramework(data.runtime, data.frameworkVersion);
@@ -106,7 +90,7 @@ namespace NUnit.Framework.Internal
             Assert.AreEqual(data.clrVersion, framework.ClrVersion, "#3");
         }
 
-        [TestCaseSource("frameworkData")]
+        [TestCaseSource(nameof(frameworkData))]
         public void CanCreateUsingClrVersion(FrameworkData data)
         {
             Assume.That(data.frameworkVersion.Major != 3, "#0");
@@ -117,7 +101,7 @@ namespace NUnit.Framework.Internal
             Assert.AreEqual(data.clrVersion, framework.ClrVersion, "#3");
         }
 
-        [TestCaseSource("frameworkData")]
+        [TestCaseSource(nameof(frameworkData))]
         public void CanParseRuntimeFramework(FrameworkData data)
         {
             RuntimeFramework framework = RuntimeFramework.Parse(data.representation);
@@ -125,7 +109,7 @@ namespace NUnit.Framework.Internal
             Assert.AreEqual(data.clrVersion, framework.ClrVersion, "#2");
         }
 
-        [TestCaseSource("frameworkData")]
+        [TestCaseSource(nameof(frameworkData))]
         public void CanDisplayFrameworkAsString(FrameworkData data)
         {
             RuntimeFramework framework = new RuntimeFramework(data.runtime, data.frameworkVersion);
@@ -133,7 +117,7 @@ namespace NUnit.Framework.Internal
             Assert.AreEqual(data.displayName, framework.DisplayName, "#2");
         }
 
-        [TestCaseSource("matchData")]
+        [TestCaseSource(nameof(matchData))]
         public bool CanMatchRuntimes(RuntimeFramework f1, RuntimeFramework f2)
         {
             return f1.Supports(f2);
@@ -255,8 +239,6 @@ namespace NUnit.Framework.Internal
             new FrameworkData(RuntimeType.Net, new Version(3,5), new Version(2,0,50727), "net-3.5", "Net 3.5"),
             new FrameworkData(RuntimeType.Net, new Version(4,0), new Version(4,0,30319), "net-4.0", "Net 4.0"),
             new FrameworkData(RuntimeType.Net, RuntimeFramework.DefaultVersion, RuntimeFramework.DefaultVersion, "net", "Net"),
-            new FrameworkData(RuntimeType.NetCF, new Version(3,5), new Version(3,5,7283), "netcf-3.5", "NetCF 3.5"),
-            new FrameworkData(RuntimeType.NetCF, RuntimeFramework.DefaultVersion, RuntimeFramework.DefaultVersion, "netcf", "NetCF"),
             new FrameworkData(RuntimeType.Mono, new Version(1,0), new Version(1,1,4322), "mono-1.0", "Mono 1.0"),
             new FrameworkData(RuntimeType.Mono, new Version(2,0), new Version(2,0,50727), "mono-2.0", "Mono 2.0"),
             // new FrameworkData(RuntimeType.Mono, new Version(2,0,50727), new Version(2,0,50727), "mono-2.0.50727", "Mono 2.0.50727"),

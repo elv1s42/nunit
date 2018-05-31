@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -84,10 +84,10 @@ namespace NUnit.Framework.Attributes
         }
 
         [Test]
-        public void TestWithInvalidCategoryNameIsNotRunnable()
+        public void TestWithValidCategoryNameIsNotRunnable()
         {
-            Test test4 = (Test)fixture.Tests[3];
-            Assert.That(test4.RunState, Is.EqualTo(RunState.NotRunnable));
+            Test testValidSpecialChars = (Test)fixture.Tests[3];
+            Assert.That(testValidSpecialChars.RunState, Is.EqualTo(RunState.Runnable));
         }
     }
 }

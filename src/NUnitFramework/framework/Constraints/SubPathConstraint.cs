@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -20,7 +20,6 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
-#if !PORTABLE
 using System;
 
 namespace NUnit.Framework.Constraints
@@ -52,8 +51,7 @@ namespace NUnit.Framework.Constraints
         /// <returns>True for success, false for failure</returns>
         protected override bool Matches(string actual)
         {
-            return actual != null & IsSubPath(Canonicalize(expected), Canonicalize(actual));
+            return actual != null && IsSubPath(Canonicalize(expected), Canonicalize(actual));
         }
     }
 }
-#endif

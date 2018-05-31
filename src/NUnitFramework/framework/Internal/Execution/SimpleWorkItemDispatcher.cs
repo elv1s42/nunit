@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,6 +27,7 @@ using System.Threading;
 
 namespace NUnit.Framework.Internal.Execution
 {
+#if !NETSTANDARD1_6
     /// <summary>
     /// SimpleWorkItemDispatcher handles execution of WorkItems by
     /// directly executing them. It is provided so that a dispatcher
@@ -35,57 +36,57 @@ namespace NUnit.Framework.Internal.Execution
     /// </summary>
     public class SimpleWorkItemDispatcher : IWorkItemDispatcher
     {
-#if !PORTABLE
         // The first WorkItem to be dispatched, assumed to be top-level item
         private WorkItem _topLevelWorkItem;
 
         // Thread used to run and cancel tests
         private Thread _runnerThread;
-#endif
 
         #region IWorkItemDispatcher Members
 
         /// <summary>
-        /// Dispatch a single work item for execution. The first
-        /// work item dispatched is saved as the top-level
-        /// work item and a thread is created on which to
-        /// run it. Subsequent calls come from the top level
-        /// item or its descendants on the proper thread.
+        ///  The level of parallelism supported
         /// </summary>
-        /// <param name="work">The item to dispatch</param>
-        public void Dispatch(WorkItem work)
+        public int LevelOfParallelism { get { return 0; } }
+
+        /// <summary>
+        /// Start execution, creating the execution thread,
+        /// setting the top level work and dispatching it.
+        /// </summary>
+        public void Start(WorkItem topLevelWorkItem)
         {
-#if PORTABLE
-            if (work != null)
-                work.Execute();
-#else
-            if (_topLevelWorkItem != null)
-                work.Execute();
-            else
-            {
-                _topLevelWorkItem = work;
-                _runnerThread = new Thread(RunnerThreadProc);
+            _topLevelWorkItem = topLevelWorkItem;
+            _runnerThread = new Thread(RunnerThreadProc);
 
-#if !NETCF && !SILVERLIGHT
-                if (work.TargetApartment == ApartmentState.STA)
-                    _runnerThread.SetApartmentState(ApartmentState.STA);
+#if APARTMENT_STATE
+            if (topLevelWorkItem.TargetApartment == ApartmentState.STA)
+                _runnerThread.SetApartmentState(ApartmentState.STA);
 #endif
 
-                _runnerThread.Start();
-            }
-#endif
+            _runnerThread.Start();
         }
 
-#if !PORTABLE
+        /// <summary>
+        /// Dispatch a single work item for execution by
+        /// executing it directly.
+        /// <param name="work">The item to dispatch</param>
+        /// </summary>
+        public void Dispatch(WorkItem work)
+        {
+            if (work != null)
+                work.Execute();
+        }
+
+
         private void RunnerThreadProc()
         {
             _topLevelWorkItem.Execute();
         }
-#endif
 
-#if !PORTABLE
-        private object cancelLock = new object();
-#endif
+
+
+        private readonly object cancelLock = new object();
+
 
         /// <summary>
         /// Cancel (abort or stop) the ongoing run.
@@ -94,7 +95,6 @@ namespace NUnit.Framework.Internal.Execution
         /// <param name="force">true if the run should be aborted, false if it should allow its currently running test to complete</param>
         public void CancelRun(bool force)
         {
-#if !PORTABLE
             lock (cancelLock)
             {
                 if (_topLevelWorkItem != null)
@@ -104,8 +104,8 @@ namespace NUnit.Framework.Internal.Execution
                         _topLevelWorkItem = null;
                 }
             }
-#endif
         }
         #endregion
     }
+#endif
 }

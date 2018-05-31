@@ -13,7 +13,6 @@ Requests for new features and bug reports keep the project moving forward.
 - Ensure you are running the [latest version](https://github.com/nunit/nunit/releases) of NUnit.
 - **Many 3rd party test runners do not support NUnit 3 yet.** They may appear to run NUnit tests, but they do not do so correctly.
 - To ensure that the bug is in NUnit and not in the runner you are using, **test your bug using the nunit3-console.exe** first.
-- If you are using the **Portable Framework**, the console runner nor the Visual Studio adapter do not run portable tests yet. You need to create an **NUnitLite** self-executing test or use the [NUnit Xamarin Runners](https://github.com/nunit/nunit.xamarin).
 - **Search** the [issue list](https://github.com/nunit/nunit/issues?utf8=%E2%9C%93&q=is%3Aissue) (including closed issues) to make sure it hasn't already been reported.
 
 ### Submitting a good issue
@@ -35,11 +34,15 @@ Issues that need confirmation will have the **confirm** label or be unlabeled an
 - Create unit tests to demonstrate the issue
 - Test issues and provide feedback
 
+As of version 3.10, the NUnit and NUnitLite NuGet packages support **debugger source-stepping** for each binary from the repository. Debuggers can step into the source code, set breakpoints, watch variables, etc. If you’re getting ready to report a bug in NUnit, figuring out how to create a minimal repro is much easier since you aren’t dealing with a black box!
+
+To easily drop into NUnit code from your project any time, [follow these steps](https://github.com/nunit/docs/wiki/Debugger-Source-Stepping).
+
 ## Documentation
 
-Great documentation is essential for any open source project and NUnit is no exception. [Our documentation](https://github.com/nunit/nunit/wiki) often lags behind the features that have been implemented or would benefit from better examples.
+Great documentation is essential for any open source project and NUnit is no exception. [Our documentation](https://github.com/nunit/docs/wiki/NUnit-Documentation) often lags behind the features that have been implemented or would benefit from better examples.
 
-A great place to start is by going through the [NUnit release notes](https://github.com/nunit/nunit/wiki/Release-Notes) and ensuring that the documentation for new features is up to date.
+A great place to start is by going through the [NUnit release notes](https://github.com/nunit/docs/wiki/Release-Notes) and ensuring that the documentation for new features is up to date.
 
 ## Fixing Bugs and Adding Features 
 
@@ -49,7 +52,7 @@ To help new contributors get their feet wet, we have marked a number of issues w
 
 It is also a good idea to add a comment to an issue that you are working on to let everyone know. If you stop working on it, also please let us know.
 
-Please read through the [NUnit Dev Wiki](https://github.com/nunit/dev/wiki) before contributing to understand our coding standards and contribution guidelines.
+Please read through the [developer docs](https://github.com/nunit/docs/wiki/Team-Practices#technical-practices) before contributing to understand our coding standards and contribution guidelines.
 
 ## License
 

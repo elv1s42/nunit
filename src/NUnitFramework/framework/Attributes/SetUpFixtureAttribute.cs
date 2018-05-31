@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014–2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using NUnit.Compatibility;
 
 namespace NUnit.Framework
 {
@@ -30,7 +32,9 @@ namespace NUnit.Framework
     using Internal;
 
     /// <summary>
-    /// SetUpFixtureAttribute is used to identify a SetUpFixture
+    /// Attribute used to identify a class that contains
+    /// <see cref="OneTimeSetUpAttribute" /> or <see cref="OneTimeTearDownAttribute" />
+    /// methods for all the test fixtures under a given namespace.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple=false, Inherited=true)]
     public class SetUpFixtureAttribute : NUnitAttribute, IFixtureBuilder
@@ -38,24 +42,21 @@ namespace NUnit.Framework
         #region ISuiteBuilder Members
 
         /// <summary>
-        /// Build a SetUpFixture from type provided. Normally called for a Type
-        /// on which the attribute has been placed.
+        /// Builds a <see cref="SetUpFixture"/> from the specified type.
         /// </summary>
-        /// <param name="typeInfo">The type info of the fixture to be used.</param>
-        /// <returns>A SetUpFixture object as a TestSuite.</returns>
-        public IEnumerable<TestSuite> BuildFrom(ITypeInfo typeInfo)
+        /// <param name="type">The type to be used as a fixture.</param>
+        public IEnumerable<TestSuite> BuildFrom(Type type)
         {
-            SetUpFixture fixture = new SetUpFixture(typeInfo);
+            SetUpFixture fixture = new SetUpFixture(type);
 
             if (fixture.RunState != RunState.NotRunnable)
             {
                 string reason = null;
-                if (!IsValidFixtureType(typeInfo, ref reason))
-                {
-                    fixture.RunState = RunState.NotRunnable;
-                    fixture.Properties.Set(PropertyNames.SkipReason, reason);
-                }
+                if (!IsValidFixtureType(type, ref reason))
+                    fixture.MakeInvalid(reason);
             }
+
+            fixture.ApplyAttributesToTest(type.GetTypeInfo());
 
             return new TestSuite[] { fixture };
         }
@@ -64,30 +65,27 @@ namespace NUnit.Framework
 
         #region Helper Methods
 
-        private bool IsValidFixtureType(ITypeInfo typeInfo, ref string reason)
+        private static bool IsValidFixtureType(Type type, ref string reason)
         {
-            if (typeInfo.IsAbstract)
+            if (type.GetTypeInfo().IsAbstract)
             {
-                reason = string.Format("{0} is an abstract class", typeInfo.FullName);
+                reason = string.Format("{0} is an abstract class", type.FullName);
                 return false;
             }
 
-            if (!typeInfo.HasConstructor(new Type[0]))
+            if (type.GetConstructor(Type.EmptyTypes) == null)
             {
-                reason = string.Format("{0} does not have a default constructor", typeInfo.FullName);
+                reason = string.Format("{0} does not have a default constructor", type.FullName);
                 return false;
             }
 
             var invalidAttributes = new Type[] { 
                 typeof(SetUpAttribute), 
-                typeof(TearDownAttribute),
-#pragma warning disable 618 // Obsolete Attributes
-                typeof(TestFixtureSetUpAttribute), 
-                typeof(TestFixtureTearDownAttribute) };
-#pragma warning restore
+                typeof(TearDownAttribute)
+            };
 
             foreach (Type invalidType in invalidAttributes)
-                if (typeInfo.HasMethodWithAttribute(invalidType))
+                if (Reflect.HasMethodWithAttribute(type, invalidType))
                 {
                     reason = invalidType.Name + " attribute not allowed in a SetUpFixture";
                     return false;

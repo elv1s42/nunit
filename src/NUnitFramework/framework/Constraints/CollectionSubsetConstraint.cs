@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -31,7 +31,7 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public class CollectionSubsetConstraint : CollectionItemsEqualConstraint
     {
-        private IEnumerable expected;
+        private readonly IEnumerable _expected;
 
         /// <summary>
         /// Construct a CollectionSubsetConstraint
@@ -39,9 +39,16 @@ namespace NUnit.Framework.Constraints
         /// <param name="expected">The collection that the actual value is expected to be a subset of</param>
         public CollectionSubsetConstraint(IEnumerable expected) : base(expected)
         {
-            this.expected = expected;
-            this.DisplayName = "SubsetOf";
+            _expected = expected;
         }
+
+        /// <summary> 
+        /// The display name of this Constraint for use by ToString().
+        /// The default value is the name of the constraint with
+        /// trailing "Constraint" removed. Derived classes may set
+        /// this to another name in their constructors.
+        /// </summary>
+        public override string DisplayName { get { return "SubsetOf"; } }
 
         /// <summary>
         /// The Description of what this constraint tests, for
@@ -49,7 +56,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override string Description
         {
-            get { return "subset of " + MsgUtils.FormatValue(expected); }
+            get { return "subset of " + MsgUtils.FormatValue(_expected); }
         }
 
         /// <summary>
@@ -60,7 +67,10 @@ namespace NUnit.Framework.Constraints
         /// <returns></returns>
         protected override bool Matches(IEnumerable actual)
         {
-            return Tally(expected).TryRemove( actual );
+            CollectionTally tally = Tally(_expected);
+            tally.TryRemove(actual);
+
+            return tally.Result.ExtraItems.Count == 0;
         }
 
 

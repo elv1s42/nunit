@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008–2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -24,7 +24,7 @@
 using System;
 using System.Collections;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 
@@ -44,7 +44,6 @@ namespace NUnit.Framework
         /// elements may have their type changed in GetData
         /// if necessary
         /// </summary>
-        // TODO: This causes a lot of boxing so we should eliminate it
         protected object[] data;
 
         /// <summary>
@@ -92,70 +91,17 @@ namespace NUnit.Framework
         /// <param name="args"></param>
         public ValuesAttribute(params object[] args)
         {
-            data = args;
+            data = args ?? new object[] { null };
         }
 
         /// <summary>
-        /// Get the collection of _values to be used as arguments
+        /// Retrieves a list of arguments which can be passed to the specified parameter.
         /// </summary>
-        public IEnumerable GetData(IParameterInfo parameter)
+        /// <param name="fixtureType">The point of context in the fixture’s inheritance hierarchy.</param>
+        /// <param name="parameter">The parameter of a parameterized test.</param>
+        public IEnumerable GetData(Type fixtureType, ParameterInfo parameter)
         {
-            Type targetType = parameter.ParameterType;
-
-            if (targetType.GetTypeInfo().IsEnum && data.Length == 0)
-            {
-                return TypeHelper.GetEnumValues(targetType);
-            }
-            if (targetType == typeof(bool) && data.Length == 0)
-            {
-                return new object[] {true, false};
-            }
-            return GetData(targetType);
-        }
-
-        private IEnumerable GetData(Type targetType)
-        {
-            for (int i = 0; i < data.Length; i++)
-            {
-                object arg = data[i];
-
-                if (arg == null)
-                    continue;
-
-                if (arg.GetType().FullName == "NUnit.Framework.SpecialValue" &&
-                    arg.ToString() == "Null")
-                {
-                    data[i] = null;
-                    continue;
-                }
-
-                if (targetType.GetTypeInfo().IsAssignableFrom(arg.GetType().GetTypeInfo()))
-                    continue;
-
-#if !PORTABLE
-                if (arg is DBNull)
-                {
-                    data[i] = null;
-                    continue;
-                }
-#endif
-
-                bool convert = false;
-
-                if (targetType == typeof(short) || targetType == typeof(byte) || targetType == typeof(sbyte))
-                    convert = arg is int;
-                else
-                    if (targetType == typeof(decimal))
-                        convert = arg is double || arg is string || arg is int;
-                    else
-                        if (targetType == typeof(DateTime) || targetType == typeof(TimeSpan))
-                            convert = arg is string;
-
-                if (convert)
-                    data[i] = Convert.ChangeType(arg, targetType, System.Globalization.CultureInfo.InvariantCulture);
-            }
-
-            return data;
+            return ParamAttributeTypeConversions.ConvertData(data, parameter.ParameterType);
         }
     }
 }

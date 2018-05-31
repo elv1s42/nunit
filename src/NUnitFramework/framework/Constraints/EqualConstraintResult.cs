@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -34,11 +34,11 @@ namespace NUnit.Framework.Constraints
     /// </summary>
     public class EqualConstraintResult : ConstraintResult
     {
-        private object expectedValue;
-        private Tolerance tolerance;
-        private bool caseInsensitive;
-        private bool clipStrings;
-        private IList<NUnitEqualityComparer.FailurePoint> failurePoints;
+        private readonly object expectedValue;
+        private readonly Tolerance tolerance;
+        private readonly bool caseInsensitive;
+        private readonly bool clipStrings;
+        private readonly IList<NUnitEqualityComparer.FailurePoint> failurePoints;
 
         #region Message Strings
         private static readonly string StringsDiffer_1 =
@@ -190,7 +190,7 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// Displays a single line showing the point in the expected and actual
         /// arrays at which the comparison failed. If the arrays have different
-        /// structures or dimensions, both _values are shown.
+        /// structures or dimensions, both values are shown.
         /// </summary>
         /// <param name="writer">The MessageWriter on which to display</param>
         /// <param name="expected">The expected array</param>

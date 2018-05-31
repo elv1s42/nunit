@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !NETCF
 using System;
 using System.Globalization;
 using System.IO;
@@ -89,6 +88,9 @@ namespace NUnitLite
                     case TestStatus.Skipped:
                         TC_TestIgnored(testName, result.Message);
                         break;
+                    case TestStatus.Warning:
+                        // TODO: No action at this time. May need to be added.
+                        break;
                     case TestStatus.Failed:
                         TC_TestFailed(testName, result.Message, result.StackTrace);
                         TC_TestFinished(testName, result.Duration);
@@ -96,7 +98,13 @@ namespace NUnitLite
                 }
         }
 
-        #region Helper Methods
+        /// <summary>
+        /// Called when a test produces output for immediate display
+        /// </summary>
+        /// <param name="output">A TestOutput object containing the text to display</param>
+        public void TestOutput(TestOutput output) { }
+
+#region Helper Methods
 
         private void TC_TestSuiteStarted(string name)
         {
@@ -145,7 +153,6 @@ namespace NUnitLite
                 : null;
         }
 
-        #endregion
+#endregion
     }
 }
-#endif

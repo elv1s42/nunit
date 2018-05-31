@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -23,8 +23,12 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using NUnit.Framework.Constraints;
+using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework
 {
@@ -34,7 +38,7 @@ namespace NUnit.Framework
     /// </summary>
     public delegate void TestDelegate();
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
     /// <summary>
     /// Delegate used by tests that execute async code and
     /// capture any thrown exception.
@@ -46,23 +50,14 @@ namespace NUnit.Framework
     /// The Assert class contains a collection of static methods that
     /// implement the most common assertions used in NUnit.
     /// </summary>
-    public partial class Assert
+    // Abstract because we support syntax extension by inheriting and declaring new static members.
+    public abstract partial class Assert
     {
-        #region Constructor
-
-        /// <summary>
-        /// We don't actually want any instances of this object, but some people
-        /// like to inherit from it to add other static methods. Hence, the
-        /// protected constructor disallows any instances of this object. 
-        /// </summary>
-        protected Assert() { }
-
-        #endregion
-
         #region Equals and ReferenceEquals
 
         /// <summary>
-        /// The Equals method throws an InvalidOperationException. This is done 
+        /// DO NOT USE! Use Assert.AreEqual(...) instead.
+        /// The Equals method throws an InvalidOperationException. This is done
         /// to make sure there is no mistake by calling this function.
         /// </summary>
         /// <param name="a"></param>
@@ -70,19 +65,20 @@ namespace NUnit.Framework
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static new bool Equals(object a, object b)
         {
-            throw new InvalidOperationException("Assert.Equals should not be used for Assertions");
+            throw new InvalidOperationException("Assert.Equals should not be used for Assertions, use Assert.AreEqual(...) instead.");
         }
 
         /// <summary>
-        /// override the default ReferenceEquals to throw an InvalidOperationException. This 
-        /// implementation makes sure there is no mistake in calling this function 
-        /// as part of Assert. 
+        /// DO NOT USE!
+        /// The ReferenceEquals method throws an InvalidOperationException. This is done
+        /// to make sure there is no mistake by calling this function.
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static new void ReferenceEquals(object a, object b)
         {
-            throw new InvalidOperationException("Assert.ReferenceEquals should not be used for Assertions");
+            throw new InvalidOperationException("Assert.ReferenceEquals should not be used for Assertions, use Assert.AreSame(...) instead.");
         }
 
         #endregion
@@ -90,7 +86,7 @@ namespace NUnit.Framework
         #region Pass
 
         /// <summary>
-        /// Throws a <see cref="SuccessException"/> with the message and arguments 
+        /// Throws a <see cref="SuccessException"/> with the message and arguments
         /// that are passed in. This allows a test to be cut short, with a result
         /// of success returned to NUnit.
         /// </summary>
@@ -102,11 +98,15 @@ namespace NUnit.Framework
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
 
+            // If we are in a multiple assert block, this is an error
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assert.Pass may not be used in a multiple assertion block.");
+
             throw new SuccessException(message);
         }
 
         /// <summary>
-        /// Throws a <see cref="SuccessException"/> with the message and arguments 
+        /// Throws a <see cref="SuccessException"/> with the message and arguments
         /// that are passed in. This allows a test to be cut short, with a result
         /// of success returned to NUnit.
         /// </summary>
@@ -117,7 +117,7 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Throws a <see cref="SuccessException"/> with the message and arguments 
+        /// Throws a <see cref="SuccessException"/> with the message and arguments
         /// that are passed in. This allows a test to be cut short, with a result
         /// of success returned to NUnit.
         /// </summary>
@@ -131,8 +131,8 @@ namespace NUnit.Framework
         #region Fail
 
         /// <summary>
-        /// Throws an <see cref="AssertionException"/> with the message and arguments 
-        /// that are passed in. This is used by the other Assert functions. 
+        /// Throws an <see cref="AssertionException"/> with the message and arguments
+        /// that are passed in. This is used by the other Assert functions.
         /// </summary>
         /// <param name="message">The message to initialize the <see cref="AssertionException"/> with.</param>
         /// <param name="args">Arguments to be used in formatting the message</param>
@@ -142,12 +142,12 @@ namespace NUnit.Framework
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
 
-            throw new AssertionException(message);
+            ReportFailure(message);
         }
 
         /// <summary>
-        /// Throws an <see cref="AssertionException"/> with the message that is 
-        /// passed in. This is used by the other Assert functions. 
+        /// Throws an <see cref="AssertionException"/> with the message that is
+        /// passed in. This is used by the other Assert functions.
         /// </summary>
         /// <param name="message">The message to initialize the <see cref="AssertionException"/> with.</param>
         static public void Fail(string message)
@@ -156,8 +156,8 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Throws an <see cref="AssertionException"/>. 
-        /// This is used by the other Assert functions. 
+        /// Throws an <see cref="AssertionException"/>.
+        /// This is used by the other Assert functions.
         /// </summary>
         static public void Fail()
         {
@@ -166,10 +166,37 @@ namespace NUnit.Framework
 
         #endregion
 
+        #region Warn
+
+        /// <summary>
+        /// Issues a warning using the message and arguments provided.
+        /// </summary>
+        /// <param name="message">The message to display.</param>
+        /// <param name="args">Arguments to be used in formatting the message</param>
+        static public void Warn(string message, params object[] args)
+        {
+            if (message == null) message = string.Empty;
+            else if (args != null && args.Length > 0)
+                message = string.Format(message, args);
+
+            IssueWarning(message);
+        }
+
+        /// <summary>
+        /// Issues a warning using the message provided.
+        /// </summary>
+        /// <param name="message">The message to display.</param>
+        static public void Warn(string message)
+        {
+            IssueWarning(message);
+        }
+
+        #endregion
+
         #region Ignore
 
         /// <summary>
-        /// Throws an <see cref="IgnoreException"/> with the message and arguments 
+        /// Throws an <see cref="IgnoreException"/> with the message and arguments
         /// that are passed in.  This causes the test to be reported as ignored.
         /// </summary>
         /// <param name="message">The message to initialize the <see cref="AssertionException"/> with.</param>
@@ -180,12 +207,16 @@ namespace NUnit.Framework
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
 
+            // If we are in a multiple assert block, this is an error
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assert.Ignore may not be used in a multiple assertion block.");
+
             throw new IgnoreException(message);
         }
 
         /// <summary>
-        /// Throws an <see cref="IgnoreException"/> with the message that is 
-        /// passed in. This causes the test to be reported as ignored. 
+        /// Throws an <see cref="IgnoreException"/> with the message that is
+        /// passed in. This causes the test to be reported as ignored.
         /// </summary>
         /// <param name="message">The message to initialize the <see cref="AssertionException"/> with.</param>
         static public void Ignore(string message)
@@ -194,8 +225,8 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Throws an <see cref="IgnoreException"/>. 
-        /// This causes the test to be reported as ignored. 
+        /// Throws an <see cref="IgnoreException"/>.
+        /// This causes the test to be reported as ignored.
         /// </summary>
         static public void Ignore()
         {
@@ -207,7 +238,7 @@ namespace NUnit.Framework
         #region InConclusive
 
         /// <summary>
-        /// Throws an <see cref="InconclusiveException"/> with the message and arguments 
+        /// Throws an <see cref="InconclusiveException"/> with the message and arguments
         /// that are passed in.  This causes the test to be reported as inconclusive.
         /// </summary>
         /// <param name="message">The message to initialize the <see cref="InconclusiveException"/> with.</param>
@@ -218,12 +249,16 @@ namespace NUnit.Framework
             else if (args != null && args.Length > 0)
                 message = string.Format(message, args);
 
+            // If we are in a multiple assert block, this is an error
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel > 0)
+                throw new Exception("Assert.Inconclusive may not be used in a multiple assertion block.");
+
             throw new InconclusiveException(message);
         }
 
         /// <summary>
-        /// Throws an <see cref="InconclusiveException"/> with the message that is 
-        /// passed in. This causes the test to be reported as inconclusive. 
+        /// Throws an <see cref="InconclusiveException"/> with the message that is
+        /// passed in. This causes the test to be reported as inconclusive.
         /// </summary>
         /// <param name="message">The message to initialize the <see cref="InconclusiveException"/> with.</param>
         static public void Inconclusive(string message)
@@ -232,8 +267,8 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Throws an <see cref="InconclusiveException"/>. 
-        /// This causes the test to be reported as Inconclusive. 
+        /// Throws an <see cref="InconclusiveException"/>.
+        /// This causes the test to be reported as Inconclusive.
         /// </summary>
         static public void Inconclusive()
         {
@@ -245,41 +280,137 @@ namespace NUnit.Framework
         #region Contains
 
         /// <summary>
-        /// Asserts that an object is contained in a list.
+        /// Asserts that an object is contained in a collection.
         /// </summary>
         /// <param name="expected">The expected object</param>
-        /// <param name="actual">The list to be examined</param>
+        /// <param name="actual">The collection to be examined</param>
         /// <param name="message">The message to display in case of failure</param>
         /// <param name="args">Array of objects to be used in formatting the message</param>
         public static void Contains(object expected, ICollection actual, string message, params object[] args)
         {
-            Assert.That(actual, new CollectionContainsConstraint(expected) ,message, args);
+            Assert.That(actual, new SomeItemsConstraint(new EqualConstraint(expected)) ,message, args);
         }
 
         /// <summary>
-        /// Asserts that an object is contained in a list.
+        /// Asserts that an object is contained in a collection.
         /// </summary>
         /// <param name="expected">The expected object</param>
-        /// <param name="actual">The list to be examined</param>
+        /// <param name="actual">The collection to be examined</param>
         public static void Contains(object expected, ICollection actual)
         {
-            Assert.That(actual, new CollectionContainsConstraint(expected) ,null, null);
+            Assert.That(actual, new SomeItemsConstraint(new EqualConstraint(expected)) ,null, null);
         }
 
         #endregion
 
         #region Multiple
 
-        ///// <summary>
-        ///// If an assert fails within this block, execution will continue and 
-        ///// the errors will be reported at the end of the block.
-        ///// </summary>
-        ///// <param name="del">The test delegate</param>
-        //public static void Multiple(TestDelegate del)
-        //{
-        //    del();
-        //}
+        /// <summary>
+        /// Wraps code containing a series of assertions, which should all
+        /// be executed, even if they fail. Failed results are saved and
+        /// reported at the end of the code block.
+        /// </summary>
+        /// <param name="testDelegate">A TestDelegate to be executed in Multiple Assertion mode.</param>
+        public static void Multiple(TestDelegate testDelegate)
+        {
+            TestExecutionContext context = TestExecutionContext.CurrentContext;
+            Guard.OperationValid(context != null, "Assert.Multiple called outside of a valid TestExecutionContext");
 
-        #endregion
+            context.MultipleAssertLevel++;
+
+            try
+            {
+                testDelegate();
+            }
+            finally
+            {
+                context.MultipleAssertLevel--;
+            }
+
+            if (context.MultipleAssertLevel == 0 && context.CurrentResult.PendingFailures > 0)
+            {
+                context.CurrentResult.RecordTestCompletion();
+                throw new MultipleAssertException(context.CurrentResult);
+            }
+        }
+
+#if ASYNC
+        /// <summary>
+        /// Wraps code containing a series of assertions, which should all
+        /// be executed, even if they fail. Failed results are saved and
+        /// reported at the end of the code block.
+        /// </summary>
+        /// <param name="testDelegate">A TestDelegate to be executed in Multiple Assertion mode.</param>
+        public static void Multiple(AsyncTestDelegate testDelegate)
+        {
+            TestExecutionContext context = TestExecutionContext.CurrentContext;
+            Guard.OperationValid(context != null, "Assert.Multiple called outside of a valid TestExecutionContext");
+
+            context.MultipleAssertLevel++;
+
+            try
+            {
+                AsyncToSyncAdapter.Await(testDelegate.Invoke);
+            }
+            finally
+            {
+                context.MultipleAssertLevel--;
+            }
+
+            if (context.MultipleAssertLevel == 0 && context.CurrentResult.PendingFailures > 0)
+            {
+                context.CurrentResult.RecordTestCompletion();
+                throw new MultipleAssertException(context.CurrentResult);
+            }
+        }
+#endif
+
+#endregion
+
+#region Helper Methods
+
+        private static void ReportFailure(ConstraintResult result, string message)
+        {
+            ReportFailure(result, message, null);
+        }
+
+        private static void ReportFailure(ConstraintResult result, string message, params object[] args)
+        {
+            MessageWriter writer = new TextMessageWriter(message, args);
+            result.WriteMessageTo(writer);
+
+            ReportFailure(writer.ToString());
+        }
+
+        private static void ReportFailure(string message)
+        {
+            // Record the failure in an <assertion> element
+            var result = TestExecutionContext.CurrentContext.CurrentResult;
+            result.RecordAssertion(AssertionStatus.Failed, message, GetStackTrace());
+            result.RecordTestCompletion();
+
+            // If we are outside any multiple assert block, then throw
+            if (TestExecutionContext.CurrentContext.MultipleAssertLevel == 0)
+                throw new AssertionException(result.Message);
+        }
+
+        private static void IssueWarning(string message)
+        {
+            var result = TestExecutionContext.CurrentContext.CurrentResult;
+            result.RecordAssertion(AssertionStatus.Warning, message, GetStackTrace());
+        }
+
+        // System.Environment.StackTrace puts extra entries on top of the stack, at least in some environments
+        private static readonly StackFilter SystemEnvironmentFilter = new StackFilter(@" System\.Environment\.");
+
+        private static string GetStackTrace() =>
+            StackFilter.DefaultFilter.Filter(SystemEnvironmentFilter.Filter(Environment.StackTrace));
+
+        private static void IncrementAssertCount()
+        {
+            TestExecutionContext.CurrentContext.IncrementAssertCount();
+        }
+
+#endregion
     }
 }

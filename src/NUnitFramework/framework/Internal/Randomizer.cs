@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2013-2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2013-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,7 @@ using System.Text;
 namespace NUnit.Framework.Internal
 {
     /// <summary>
-    /// Randomizer returns a set of random _values in a repeatable
+    /// Randomizer returns a set of random values in a repeatable
     /// way, to allow re-running of tests if necessary. It extends
     /// the .NET Random class, providing random values for a much
     /// wider range of types.
@@ -79,12 +79,12 @@ namespace NUnit.Framework.Internal
         private static int _initialSeed;
 
         // Lookup Dictionary used to find randomizers for each member
-        private static Dictionary<MemberInfo, Randomizer> Randomizers;
+        private static readonly Dictionary<MemberInfo, Randomizer> Randomizers;
 
         /// <summary>
         /// Get a Randomizer for a particular member, returning
         /// one that has already been created if it exists.
-        /// This ensures that the same _values are generated
+        /// This ensures that the same values are generated
         /// each time the tests are reloaded.
         /// </summary>
         public static Randomizer GetRandomizer(MemberInfo member)
@@ -172,7 +172,7 @@ namespace NUnit.Framework.Internal
         [CLSCompliant(false)]
         public uint NextUInt(uint min, uint max)
         {
-            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", "max");
+            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", nameof(max));
 
             if (min == max)
                 return min;
@@ -275,7 +275,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public long NextLong(long min, long max)
         {
-            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", "max");
+            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", nameof(max));
 
             if (min == max)
                 return min;
@@ -322,7 +322,7 @@ namespace NUnit.Framework.Internal
         [CLSCompliant(false)]
         public ulong NextULong(ulong min, ulong max)
         {
-            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", "max");
+            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", nameof(max));
 
             ulong range = max - min;
 
@@ -413,11 +413,11 @@ namespace NUnit.Framework.Internal
         }
 
         /// <summary>
-        /// Returns a random bool based on the probablility a true result
+        /// Returns a random bool based on the probability a true result
         /// </summary>
         public bool NextBool(double probability)
         {
-            Guard.ArgumentInRange(probability >= 0.0 && probability <= 1.0, "Probability must be from 0.0 to 1.0", "probability");
+            Guard.ArgumentInRange(probability >= 0.0 && probability <= 1.0, "Probability must be from 0.0 to 1.0", nameof(probability));
 
             return NextDouble() < probability;
         }
@@ -441,7 +441,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public double NextDouble(double min, double max)
         {
-            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", "max");
+            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", nameof(max));
 
             if (max == min)
                 return min;
@@ -487,7 +487,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public object NextEnum(Type type)
         {
-            Array enums = TypeHelper.GetEnumValues(type);
+            Array enums = Enum.GetValues(type);
             return enums.GetValue(Next(0, enums.Length));
         }
 
@@ -506,7 +506,7 @@ namespace NUnit.Framework.Internal
         /// <summary>
         /// Default characters for random functions.
         /// </summary>
-        /// <remarks>Default characters are the English alphabet (uppercase &amp; lowercase), arabic numerals, and underscore</remarks>
+        /// <remarks>Default characters are the English alphabet (uppercase &amp; lowercase), Arabic numerals, and underscore</remarks>
         public const string DefaultStringChars = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ0123456789_";
 
         private const int DefaultStringLength = 25;
@@ -587,12 +587,12 @@ namespace NUnit.Framework.Internal
         /// </remarks>
         public decimal NextDecimal(decimal min, decimal max)
         {
-            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", "max");
+            Guard.ArgumentInRange(max >= min, "Maximum value must be greater than or equal to minimum.", nameof(max));
 
             // Check that the range is not greater than MaxValue without 
             // first calculating it, since this would cause overflow
             Guard.ArgumentValid(max < 0M == min < 0M || min + decimal.MaxValue >= max,
-                "Range too great for decimal data, use double range", "max");
+                "Range too great for decimal data, use double range", nameof(max));
 
             if (min == max)
                 return min;
@@ -609,6 +609,25 @@ namespace NUnit.Framework.Internal
             while (raw > limit);
 
             return unchecked(raw % range + min);
+        }
+
+        #endregion 
+
+        #region Guid
+
+        /// <summary>
+        /// Generates a valid version 4 <see cref="Guid"/>.
+        /// </summary>
+        public Guid NextGuid()
+        {
+            //We use the algorithm described in https://tools.ietf.org/html/rfc4122#section-4.4
+            var b = new byte[16];
+            NextBytes(b);
+            //set the version to 4
+            b[7] = (byte)((b[7] & 0x0f) | 0x40);
+            //set the 2-bits indicating the variant to 1 and 0
+            b[8] = (byte)((b[8] & 0x3f) | 0x80);
+            return new Guid(b);
         }
 
         #endregion

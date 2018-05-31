@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 using System;
 using NUnit.Framework.Constraints;
+using NUnit.TestUtilities;
 
 namespace NUnit.Framework.Syntax
 {
@@ -116,6 +117,14 @@ namespace NUnit.Framework.Syntax
             Assert.That(
                 delegate { throw new Exception(); },
                 Throws.Exception);
+        }
+
+        [Test]
+        public void ArgumentNullException_ConstraintMatchesThrownArgumentNullException()
+        {
+            Assert.That(
+                TestDelegates.ThrowsArgumentNullException, 
+                Throws.ArgumentNullException);
         }
 
         [Test]

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,12 +29,12 @@ using NUnit.Framework.Interfaces;
 namespace NUnit.Framework
 {
     /// <summary>
-    /// Summary description for MaxTimeAttribute.
+    /// Specifies the maximum time (in milliseconds) for a test case to succeed.
     /// </summary>
     [AttributeUsage( AttributeTargets.Method, AllowMultiple=false, Inherited=false )]
     public sealed class MaxTimeAttribute : PropertyAttribute, IWrapSetUpTearDown
     {
-        private int _milliseconds;
+        private readonly int _milliseconds;
         /// <summary>
         /// Construct a MaxTimeAttribute, given a time in milliseconds.
         /// </summary>

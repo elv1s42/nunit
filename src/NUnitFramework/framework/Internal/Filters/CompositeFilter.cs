@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,7 @@ namespace NUnit.Framework.Internal.Filters
     /// <summary>
     /// A base class for multi-part filters
     /// </summary>
-    public abstract class CompositeFilter : TestFilter
+    internal abstract class CompositeFilter : TestFilter
     {
         /// <summary>
         /// Constructs an empty CompositeFilter
@@ -61,7 +61,7 @@ namespace NUnit.Framework.Internal.Filters
         /// <summary>
         /// Return a list of the composing filters.
         /// </summary>
-        public IList<ITestFilter> Filters { get; private set; }
+        public IList<ITestFilter> Filters { get; }
 
         /// <summary>
         /// Checks whether the CompositeFilter is matched by a test.

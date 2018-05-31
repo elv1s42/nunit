@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,8 +29,7 @@ namespace NUnit.Framework.Internal.Filters
     /// <summary>
     /// FullName filter selects tests based on their FullName
     /// </summary>
-    [Serializable]
-    public class MethodNameFilter : ValueMatchFilter
+    internal class MethodNameFilter : ValueMatchFilter
     {
         /// <summary>
         /// Construct a MethodNameFilter for a single name

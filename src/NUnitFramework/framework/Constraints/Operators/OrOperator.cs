@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,7 +24,7 @@
 namespace NUnit.Framework.Constraints
 {
     /// <summary>
-    /// Operator that requires at least one of it's arguments to succeed
+    /// Operator that requires at least one of its arguments to succeed
     /// </summary>
     public class OrOperator : BinaryOperator
     {

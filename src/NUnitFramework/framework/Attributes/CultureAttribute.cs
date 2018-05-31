@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -35,8 +35,8 @@ namespace NUnit.Framework
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Assembly, AllowMultiple = false, Inherited=false)]
     public class CultureAttribute : IncludeExcludeAttribute, IApplyToTest
     {
-        private CultureDetector cultureDetector = new CultureDetector();
-        private CultureInfo currentCulture = CultureInfo.CurrentCulture;
+        private readonly CultureDetector cultureDetector = new CultureDetector();
+        private readonly CultureInfo currentCulture = CultureInfo.CurrentCulture;
 
         /// <summary>
         /// Constructor with no cultures specified, for use
@@ -47,7 +47,7 @@ namespace NUnit.Framework
         /// <summary>
         /// Constructor taking one or more cultures
         /// </summary>
-        /// <param name="cultures">Comma-deliminted list of cultures</param>
+        /// <param name="cultures">Comma-delimited list of cultures</param>
         public CultureAttribute(string cultures) : base(cultures) { }
 
         #region IApplyToTest members

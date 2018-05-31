@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009-2015 Charlie Poole
+// Copyright (c) 2009-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -28,7 +28,7 @@ namespace NUnit.Framework.Interfaces
 {
     /// <summary>
     /// The ITestCaseData interface is implemented by a class
-    /// that is able to return complete testcases for use by
+    /// that is able to return complete test cases for use by
     /// a parameterized test method.
     /// </summary>
     public interface ITestCaseData : ITestData

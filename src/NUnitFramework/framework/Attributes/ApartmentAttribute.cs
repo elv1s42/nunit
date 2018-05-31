@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !PORTABLE && !NETCF
+#if APARTMENT_STATE
 using System;
 using System.Threading;
 using NUnit.Framework.Internal;
@@ -41,7 +41,7 @@ namespace NUnit.Framework
         /// <param name="apartmentState">The apartment state that this test must be run under. You must pass in a valid apartment state.</param>
         public ApartmentAttribute(ApartmentState apartmentState)
         {
-            Guard.ArgumentValid(apartmentState != ApartmentState.Unknown, "must be STA or MTA", "apartmentState");
+            Guard.ArgumentValid(apartmentState != ApartmentState.Unknown, "must be STA or MTA", nameof(apartmentState));
             Properties.Add(PropertyNames.ApartmentState, apartmentState);
         }
     }

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.TestData;
 using NUnit.TestUtilities;
@@ -52,7 +53,7 @@ namespace NUnit.Framework.Internal
 
             int invalid = 0;
             // Examine grandchildren - child is parameterized method suite
-            var suiteResult = result.Children[0];
+            var suiteResult = result.Children.ToArray()[0];
             foreach (var childResult in suiteResult.Children)
                 if (childResult.ResultState == ResultState.NotRunnable)
                     invalid++;
@@ -82,7 +83,7 @@ namespace NUnit.Framework.Internal
             Assert.AreEqual("ABC", label);
         }
 
-        [TestCaseSource("Source")]
+        [TestCaseSource(nameof(Source))]
         public void TestCaseSource_OneTypeParameterOnTwoArgs<T>(T x, T y, string label)
         {
             Assert.AreEqual(5, x);
@@ -99,7 +100,7 @@ namespace NUnit.Framework.Internal
 
             int invalid = 0;
             // Examine grandchildren - child is parameterized method suite
-            var suiteResult = result.Children[0];
+            var suiteResult = result.Children.ToArray()[0];
             foreach (var childResult in suiteResult.Children)
                 if (childResult.ResultState == ResultState.NotRunnable)
                     invalid++;
@@ -107,7 +108,7 @@ namespace NUnit.Framework.Internal
             Assert.That(invalid, Is.EqualTo(2), "Invalid count");
         }
 
-        [TestCaseSource("Source")]
+        [TestCaseSource(nameof(Source))]
         public void TestCaseSource_TwoTypeParameters<T1, T2>(T1 x, T2 y, string label)
         {
             Assert.AreEqual(5, x);
@@ -142,7 +143,7 @@ namespace NUnit.Framework.Internal
 
             int invalid = 0;
             // Examine grandchildren - child is parameterized method suite
-            var suiteResult = result.Children[0];
+            var suiteResult = result.Children.ToArray()[0];
             foreach (var childResult in suiteResult.Children)
                 if (childResult.ResultState == ResultState.NotRunnable)
                     invalid++;

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -31,12 +31,12 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// The base constraint
         /// </summary>
-        protected IConstraint baseConstraint;
+        protected IConstraint BaseConstraint { get; set; }
 
         /// <summary>
         /// Prefix used in forming the constraint description
         /// </summary>
-        protected string descriptionPrefix;
+        protected string DescriptionPrefix { get; set; }
 
         /// <summary>
         /// Construct given a base constraint
@@ -45,9 +45,9 @@ namespace NUnit.Framework.Constraints
         protected PrefixConstraint(IResolveConstraint baseConstraint)
             : base(baseConstraint)
         {
-            Guard.ArgumentNotNull(baseConstraint, "baseConstraint");
+            Guard.ArgumentNotNull(baseConstraint, nameof(baseConstraint));
 
-            this.baseConstraint = baseConstraint.Resolve();
+            BaseConstraint = baseConstraint.Resolve();
         }
 
         /// <summary>
@@ -56,13 +56,18 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override string Description
         {
-            get
-            {
-                return string.Format(
-                    baseConstraint is EqualConstraint ? "{0} equal to {1}" : "{0} {1}", 
-                    descriptionPrefix, 
-                    baseConstraint.Description);
-            }
+            get { return FormatDescription(DescriptionPrefix, BaseConstraint); }
+        }
+
+        /// <summary>
+        /// Formats a prefix constraint's description.
+        /// </summary>
+        internal static string FormatDescription(string descriptionPrefix, IConstraint baseConstraint)
+        {
+            return string.Format(
+                baseConstraint is EqualConstraint ? "{0} equal to {1}" : "{0} {1}",
+                descriptionPrefix,
+                baseConstraint.Description);
         }
     }
 }

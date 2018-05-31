@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -29,7 +28,7 @@ using System.IO;
 namespace NUnitLite
 {
     /// <summary>
-    /// DebugWriter is a TextWriter that sends it's 
+    /// DebugWriter is a TextWriter that sends its 
     /// output to Debug. We don't use Trace because
     /// writing to it is not supported in CF.
     /// </summary>
@@ -104,10 +103,6 @@ namespace NUnitLite
         /// <returns>
         /// The Encoding in which the output is written.
         /// </returns>
-        public override System.Text.Encoding Encoding
-        {
-            get { return System.Text.Encoding.Default; }
-        }
+        public override System.Text.Encoding Encoding { get; } = new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     }
 }
-#endif

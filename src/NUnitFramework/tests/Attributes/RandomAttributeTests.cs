@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,7 +24,7 @@
 using System.Collections;
 using System.Reflection;
 using System.Text;
-using NUnit.Framework.Compatibility;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.TestData.RandomAttributeTests;
 using NUnit.TestUtilities;
@@ -38,7 +38,7 @@ namespace NUnit.Framework.Attributes
         public void CheckRandomResult(string methodName)
         {
             var result = TestBuilder.RunParameterizedMethodSuite(typeof(RandomAttributeFixture), methodName);
-            Assert.That(result.Children.Count, Is.EqualTo(RandomAttributeFixture.COUNT));
+            Assert.That(result.Children.Count(), Is.EqualTo(RandomAttributeFixture.COUNT));
 
             if (result.ResultState != ResultState.Success)
             {
@@ -61,7 +61,7 @@ namespace NUnit.Framework.Attributes
             public IEnumerator GetEnumerator()
             {
                 foreach (var method in typeof(RandomAttributeFixture).GetMethods())
-                    if (method.IsDefined(typeof(TestAttribute), false))
+                    if (method.HasAttribute<TestAttribute>(inherit: false))
                         yield return new TestCaseData(method.Name).SetName(method.Name);
             }
         }

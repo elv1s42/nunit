@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,7 +25,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 
 namespace NUnit.Framework
 {
@@ -35,7 +35,7 @@ namespace NUnit.Framework
     /// </summary>
     public class ListMapper
     {
-        ICollection original;
+        readonly ICollection original;
 
         /// <summary>
         /// Construct a ListMapper based on a collection
@@ -47,9 +47,9 @@ namespace NUnit.Framework
         }
 
         /// <summary>
-        /// Produces a collection containing all the _values of a property
+        /// Produces a collection containing all the values of a property
         /// </summary>
-        /// <param name="name">The collection of property _values</param>
+        /// <param name="name">The collection of property values</param>
         /// <returns></returns>
         public ICollection Property( string name )
         {

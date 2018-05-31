@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,7 +22,6 @@
 // ***********************************************************************
 
 using System;
-using System.Collections;
 using NUnit.Framework.Constraints;
 
 namespace NUnit.Framework
@@ -31,7 +30,8 @@ namespace NUnit.Framework
     /// Helper class with properties and methods that supply
     /// a number of constraints used in Asserts.
     /// </summary>
-    public class Has
+    // Abstract because we support syntax extension by inheriting and declaring new static members.
+    public abstract class Has
     {
         #region No
 
@@ -95,11 +95,28 @@ namespace NUnit.Framework
         /// the following constraint to all members of a collection,
         /// succeeding only if a specified number of them succeed.
         /// </summary>
-        public static ConstraintExpression Exactly(int expectedCount)
+        public static ItemsConstraintExpression Exactly(int expectedCount)
         {
             return new ConstraintExpression().Exactly(expectedCount);
         }
- 
+
+        #endregion
+
+        #region One
+
+        /// <summary>
+        /// Returns a <see cref="ItemsConstraintExpression"/> which will apply
+        /// the following constraint to only one member of the collection,
+        /// and fail if none or more than one match occurs.
+        /// </summary>
+        public static ItemsConstraintExpression One
+        {
+            get
+            {
+                return new ConstraintExpression().Exactly(1);
+            }
+        }
+
         #endregion
 
         #region Property
@@ -193,12 +210,12 @@ namespace NUnit.Framework
         #region Member
 
         /// <summary>
-        /// Returns a new CollectionContainsConstraint checking for the
+        /// Returns a new <see cref="SomeItemsConstraint"/> checking for the
         /// presence of a particular object in the collection.
         /// </summary>
-        public static CollectionContainsConstraint Member(object expected)
+        public static SomeItemsConstraint Member(object expected)
         {
-            return new CollectionContainsConstraint(expected);
+            return new SomeItemsConstraint(new EqualConstraint(expected));
         }
 
         #endregion

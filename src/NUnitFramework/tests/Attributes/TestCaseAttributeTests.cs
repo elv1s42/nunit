@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,10 +23,19 @@
 
 using System;
 using System.Collections;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.TestData.TestCaseAttributeFixture;
 using NUnit.TestUtilities;
+
+#if ASYNC
+using System.Threading.Tasks;
+#endif
+
+#if NET40
+using Task = System.Threading.Tasks.TaskEx;
+#endif
 
 namespace NUnit.Framework.Attributes
 {
@@ -91,9 +100,9 @@ namespace NUnit.Framework.Attributes
             return (sbyte)(x + y);
         }
 
-        [TestCase("MethodCausesConversionOverflow", RunState.NotRunnable)]
-        [TestCase("VoidTestCaseWithExpectedResult", RunState.NotRunnable)]
-        [TestCase("TestCaseWithNullableReturnValueAndNullExpectedResult", RunState.Runnable)]
+        [TestCase(nameof(TestCaseAttributeFixture.MethodCausesConversionOverflow), RunState.NotRunnable)]
+        [TestCase(nameof(TestCaseAttributeFixture.VoidTestCaseWithExpectedResult), RunState.NotRunnable)]
+        [TestCase(nameof(TestCaseAttributeFixture.TestCaseWithNullableReturnValueAndNullExpectedResult), RunState.Runnable)]
         public void TestCaseRunnableState(string methodName, RunState expectedState)
         {
             var test = (Test)TestBuilder.MakeParameterizedMethodSuite(
@@ -107,12 +116,30 @@ namespace NUnit.Framework.Attributes
             Assert.AreEqual(1942, dt.Year);
         }
 
+        [TestCase("1942-10-12")]
+        public void CanConvertIso8601DateStringToDateTime(DateTime dt)
+        {
+            Assert.AreEqual(new DateTime(1942,10,12), dt);
+        }
+
+        [TestCase("1942-10-12", ExpectedResult = "1942-10-12")]
+        public DateTime CanConvertExpectedResultStringToDateTime(DateTime dt)
+        {
+            return dt;
+        }
+
         [TestCase("4:44:15")]
         public void CanConvertStringToTimeSpan(TimeSpan ts)
         {
             Assert.AreEqual(4, ts.Hours);
             Assert.AreEqual(44, ts.Minutes);
             Assert.AreEqual(15, ts.Seconds);
+        }
+
+        [TestCase("4:44:15", ExpectedResult = "4:44:15")]
+        public TimeSpan CanConvertExpectedResultStringToTimeSpan(TimeSpan ts)
+        {
+            return ts;
         }
 
         [TestCase(null)]
@@ -192,23 +219,21 @@ namespace NUnit.Framework.Attributes
             Assert.AreEqual("c", array[0]);
         }
 
-#if !NETCF
-        [TestCase("a")]
-        [TestCase("a", "b")]
-        public void HandlesOptionalArguments(string s1, string s2 = "b")
+        [TestCase("x", ExpectedResult = new []{"x", "b", "c"})]
+        [TestCase("x", "y", ExpectedResult = new[] { "x", "y", "c" })]
+        [TestCase("x", "y", "z", ExpectedResult = new[] { "x", "y", "z" })]
+        public string[] HandlesOptionalArguments(string s1, string s2 = "b", string s3 = "c")
         {
-            Assert.AreEqual("a", s1);
-            Assert.AreEqual("b", s2);
+            return new[] {s1, s2, s3};
         }
 
-        [TestCase]
-        [TestCase("a", "b")]
-        public void HandlesAllOptionalArguments(string s1 = "a", string s2 = "b")
+        [TestCase(ExpectedResult = new []{"a", "b"})]
+        [TestCase("x", ExpectedResult = new[] { "x", "b" })]
+        [TestCase("x", "y", ExpectedResult = new[] { "x", "y" })]
+        public string[] HandlesAllOptionalArguments(string s1 = "a", string s2 = "b")
         {
-            Assert.AreEqual("a", s1);
-            Assert.AreEqual("b", s2);
+            return new[] {s1, s2};
         }
-#endif
 
         [TestCase("a", "b", Explicit = true)]
         public void ShouldNotRunAndShouldNotFailInConsoleRunner()
@@ -220,7 +245,7 @@ namespace NUnit.Framework.Attributes
         public void CanSpecifyDescription()
         {
             Test test = (Test)TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodHasDescriptionSpecified").Tests[0];
+                typeof(TestCaseAttributeFixture), nameof(TestCaseAttributeFixture.MethodHasDescriptionSpecified)).Tests[0];
             Assert.AreEqual("My Description", test.Properties.Get(PropertyNames.Description));
         }
 
@@ -228,7 +253,7 @@ namespace NUnit.Framework.Attributes
         public void CanSpecifyTestName_FixedText()
         {
             Test test = (Test)TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodHasTestNameSpecified_FixedText").Tests[0];
+                typeof(TestCaseAttributeFixture), nameof(TestCaseAttributeFixture.MethodHasTestNameSpecified_FixedText)).Tests[0];
             Assert.AreEqual("XYZ", test.Name);
             Assert.AreEqual("NUnit.TestData.TestCaseAttributeFixture.TestCaseAttributeFixture.XYZ", test.FullName);
         }
@@ -237,7 +262,7 @@ namespace NUnit.Framework.Attributes
         public void CanSpecifyTestName_WithMethodName()
         {
             Test test = (Test)TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodHasTestNameSpecified_WithMethodName").Tests[0];
+                typeof(TestCaseAttributeFixture), nameof(TestCaseAttributeFixture.MethodHasTestNameSpecified_WithMethodName)).Tests[0];
             var expectedName = "MethodHasTestNameSpecified_WithMethodName+XYZ";
             Assert.AreEqual(expectedName, test.Name);
             Assert.AreEqual("NUnit.TestData.TestCaseAttributeFixture.TestCaseAttributeFixture." + expectedName, test.FullName);
@@ -247,7 +272,7 @@ namespace NUnit.Framework.Attributes
         public void CanSpecifyCategory()
         {
             Test test = (Test)TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodHasSingleCategory").Tests[0];
+                typeof(TestCaseAttributeFixture), nameof(TestCaseAttributeFixture.MethodHasSingleCategory)).Tests[0];
             IList categories = test.Properties["Category"];
             Assert.AreEqual(new string[] { "XYZ" }, categories);
         }
@@ -256,7 +281,7 @@ namespace NUnit.Framework.Attributes
         public void CanSpecifyMultipleCategories()
         {
             Test test = (Test)TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodHasMultipleCategories").Tests[0];
+                typeof(TestCaseAttributeFixture), nameof(TestCaseAttributeFixture.MethodHasMultipleCategories)).Tests[0];
             IList categories = test.Properties["Category"];
             Assert.AreEqual(new string[] { "X", "Y", "Z" }, categories);
         }
@@ -264,16 +289,17 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void CanIgnoreIndividualTestCases()
         {
+            var methodName = nameof(TestCaseAttributeFixture.MethodWithIgnoredTestCases);
             TestSuite suite = TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodWithIgnoredTestCases");
+                typeof(TestCaseAttributeFixture), methodName);
 
-            Test testCase = TestFinder.Find("MethodWithIgnoredTestCases(1)", suite, false);
+            Test testCase = TestFinder.Find($"{methodName}(1)", suite, false);
             Assert.That(testCase.RunState, Is.EqualTo(RunState.Runnable));
  
-            testCase = TestFinder.Find("MethodWithIgnoredTestCases(2)", suite, false);
+            testCase = TestFinder.Find($"{methodName}(2)", suite, false);
             Assert.That(testCase.RunState, Is.EqualTo(RunState.Ignored));
  
-            testCase = TestFinder.Find("MethodWithIgnoredTestCases(3)", suite, false);
+            testCase = TestFinder.Find($"{methodName}(3)", suite, false);
             Assert.That(testCase.RunState, Is.EqualTo(RunState.Ignored));
             Assert.That(testCase.Properties.Get(PropertyNames.SkipReason), Is.EqualTo("Don't Run Me!"));
         }
@@ -281,21 +307,22 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void CanMarkIndividualTestCasesExplicit()
         {
+            var methodName = nameof(TestCaseAttributeFixture.MethodWithExplicitTestCases);
             TestSuite suite = TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodWithExplicitTestCases");
+                typeof(TestCaseAttributeFixture), methodName);
 
-            Test testCase = TestFinder.Find("MethodWithExplicitTestCases(1)", suite, false);
+            Test testCase = TestFinder.Find($"{methodName}(1)", suite, false);
             Assert.That(testCase.RunState, Is.EqualTo(RunState.Runnable));
  
-            testCase = TestFinder.Find("MethodWithExplicitTestCases(2)", suite, false);
+            testCase = TestFinder.Find($"{methodName}(2)", suite, false);
             Assert.That(testCase.RunState, Is.EqualTo(RunState.Explicit));
  
-            testCase = TestFinder.Find("MethodWithExplicitTestCases(3)", suite, false);
+            testCase = TestFinder.Find($"{methodName}(3)", suite, false);
             Assert.That(testCase.RunState, Is.EqualTo(RunState.Explicit));
             Assert.That(testCase.Properties.Get(PropertyNames.SkipReason), Is.EqualTo("Connection failing"));
         }
 
-#if !PORTABLE
+#if PLATFORM_DETECTION
         [Test]
         public void CanIncludePlatform()
         {
@@ -338,13 +365,14 @@ namespace NUnit.Framework.Attributes
             bool isLinux = OSPlatform.CurrentPlatform.IsUnix;
             bool isMacOSX = OSPlatform.CurrentPlatform.IsMacOSX;
 
+            const string methodName = nameof(TestCaseAttributeFixture.MethodWithExcludePlatform);
             TestSuite suite = TestBuilder.MakeParameterizedMethodSuite(
-                typeof(TestCaseAttributeFixture), "MethodWitExcludePlatform");
+                typeof(TestCaseAttributeFixture), methodName);
 
-            Test testCase1 = TestFinder.Find("MethodWitExcludePlatform(1)", suite, false);
-            Test testCase2 = TestFinder.Find("MethodWitExcludePlatform(2)", suite, false);
-            Test testCase3 = TestFinder.Find("MethodWitExcludePlatform(3)", suite, false);
-            Test testCase4 = TestFinder.Find("MethodWitExcludePlatform(4)", suite, false);
+            Test testCase1 = TestFinder.Find($"{methodName}(1)", suite, false);
+            Test testCase2 = TestFinder.Find($"{methodName}(2)", suite, false);
+            Test testCase3 = TestFinder.Find($"{methodName}(3)", suite, false);
+            Test testCase4 = TestFinder.Find($"{methodName}(4)", suite, false);
             if (isLinux)
             {
                 Assert.That(testCase1.RunState, Is.EqualTo(RunState.Runnable));
@@ -368,6 +396,23 @@ namespace NUnit.Framework.Attributes
             }
         }
 #endif
+
+        [Test]
+        public void TestNameIntrospectsArrayValues()
+        {
+            TestSuite suite = TestBuilder.MakeParameterizedMethodSuite(
+                typeof(TestCaseAttributeFixture), nameof(TestCaseAttributeFixture.MethodWithArrayArguments));
+
+            Assert.That(suite.TestCaseCount, Is.EqualTo(4));
+            var expectedNames = new[]
+            {
+                @"MethodWithArrayArguments([])",
+                @"MethodWithArrayArguments([1, ""text"", null])",
+                @"MethodWithArrayArguments([1, Int32[], 4])",
+                @"MethodWithArrayArguments([1, 2, 3, 4, 5, ...])"
+            };
+            Assert.That(suite.Tests.Select(t => t.Name), Is.EquivalentTo(expectedNames));
+        }
 
 
         #region Nullable<> tests
@@ -410,6 +455,13 @@ namespace NUnit.Framework.Attributes
 
         [TestCase(1)]
         public void CanConvertIntToNullableSByte(sbyte? x)
+        {
+            Assert.That(x.HasValue);
+            Assert.That(x.Value, Is.EqualTo(1));
+        }
+
+        [TestCase(1)]
+        public void CanConvertIntToNullableLong(long? x)
         {
             Assert.That(x.HasValue);
             Assert.That(x.Value, Is.EqualTo(1));
@@ -505,6 +557,20 @@ namespace NUnit.Framework.Attributes
         {
             return a;
         }
+
+        [TestCase(1, ExpectedResult = 1)]
+        public T TestWithGenericReturnType<T>(T arg1)
+        {
+            return arg1;
+        }
+
+#if ASYNC
+        [TestCase(1, ExpectedResult = 1)]
+        public async Task<T> TestWithAsyncGenericReturnType<T>(T arg1)
+        {
+            return await Task.Run(() => arg1);
+        }
+#endif
 
         #endregion
     }

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,17 +22,17 @@
 // ***********************************************************************
 using System;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 
 namespace NUnit.Framework.Constraints
 {
     /// <summary>
     /// AttributeExistsConstraint tests for the presence of a
-    /// specified attribute on  a Type.
+    /// specified attribute on a Type.
     /// </summary>
     public class AttributeExistsConstraint : Constraint
     {
-        private Type expectedType;
+        private readonly Type expectedType;
 
         /// <summary>
         /// Constructs an AttributeExistsConstraint for a specific attribute Type
@@ -45,7 +45,7 @@ namespace NUnit.Framework.Constraints
 
             if (!typeof(Attribute).GetTypeInfo().IsAssignableFrom(expectedType.GetTypeInfo()))
                 throw new ArgumentException(string.Format(
-                    "Type {0} is not an attribute", expectedType), "type");
+                    "Type {0} is not an attribute", expectedType), nameof(type));
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace NUnit.Framework.Constraints
         /// <returns>True if the expected attribute is present, otherwise false</returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            Guard.ArgumentNotNull(actual, "actual");
+            Guard.ArgumentNotNull(actual, nameof(actual));
             Attribute[] attrs = AttributeHelper.GetCustomAttributes(actual, expectedType, true);
             ConstraintResult result = new ConstraintResult(this, actual);
             result.Status = attrs.Length > 0

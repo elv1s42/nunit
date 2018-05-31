@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
 using System;
 using System.Threading;
 
@@ -35,13 +34,7 @@ namespace NUnit.TestData
         [Test, MaxTime(1)]
         public void MaxTimeExceeded()
         {
-#if SILVERLIGHT
-            // Silverlight does not have the high resolution StopWatch, so
-            // we need to delay longer than their minimum clock resolution
-            Thread.Sleep(1000);
-#else
             Thread.Sleep(20);
-#endif
         }
     }
 
@@ -51,13 +44,7 @@ namespace NUnit.TestData
         [TestCase(5), MaxTime(1)]
         public void MaxTimeExceeded(int x)
         {
-#if SILVERLIGHT
-            // Silverlight does not have the high resolution StopWatch, so
-            // we need to delay longer than their minimum clock resolution
-            Thread.Sleep(1000);
-#else
             Thread.Sleep(20);
-#endif
         }
     }
 
@@ -83,4 +70,3 @@ namespace NUnit.TestData
         }
     }
 }
-#endif

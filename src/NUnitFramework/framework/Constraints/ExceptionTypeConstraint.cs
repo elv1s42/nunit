@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -47,7 +47,7 @@ namespace NUnit.Framework.Constraints
             Exception castedToException = actual as Exception;
 
             if (actual != null && castedToException == null)
-                throw new ArgumentException("Actual value must be an Exception", "actual");
+                throw new ArgumentException("Actual value must be an Exception", nameof(actual));
 
             actualType = actual == null ? null : actual.GetType();
 

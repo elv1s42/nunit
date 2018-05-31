@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -26,7 +26,7 @@ using NUnit.Framework.Internal;
 
 namespace NUnit.Framework
 {
-    public partial class Assert
+    public abstract partial class Assert
     {
         #region AreEqual
 
@@ -242,11 +242,6 @@ namespace NUnit.Framework
                 Assert.That(actual, Is.EqualTo(expected), message, args);
             else
                 Assert.That(actual, Is.EqualTo(expected).Within(delta), message, args);
-        }
-
-        private static void IncrementAssertCount()
-        {
-            TestExecutionContext.CurrentContext.IncrementAssertCount();
         }
 
         #endregion

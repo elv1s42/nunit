@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,7 +23,14 @@
 
 using System;
 using System.Collections.Generic;
+#if PARALLEL
+using System.Collections.Concurrent;
+#endif
 using NUnit.Framework.Interfaces;
+using System.Threading;
+#if NET20
+using NUnit.Compatibility;
+#endif
 
 namespace NUnit.Framework.Internal
 {
@@ -34,9 +41,14 @@ namespace NUnit.Framework.Internal
     {
         private int _passCount = 0;
         private int _failCount = 0;
+        private int _warningCount = 0;
         private int _skipCount = 0;
         private int _inconclusiveCount = 0;
-        private List<ITestResult> _children;
+#if PARALLEL
+        private readonly ConcurrentQueue<ITestResult> _children = new ConcurrentQueue<ITestResult>();
+#else
+        private readonly List<ITestResult> _children = new List<ITestResult>();
+#endif
 
         /// <summary>
         /// Construct a TestSuiteResult base on a TestSuite
@@ -44,10 +56,9 @@ namespace NUnit.Framework.Internal
         /// <param name="suite">The TestSuite to which the result applies</param>
         public TestSuiteResult(TestSuite suite) : base(suite)
         {
-            _children = new List<ITestResult>();
         }
 
-        #region Overrides
+#region Overrides
 
         /// <summary>
         /// Gets the number of test cases that failed
@@ -55,7 +66,22 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public override int FailCount
         {
-            get { return _failCount; }
+            get
+            {
+#if PARALLEL
+                RwLock.EnterReadLock();
+#endif
+                try
+                {
+                    return _failCount;
+                }
+                finally
+                {
+#if PARALLEL
+                    RwLock.ExitReadLock();
+#endif
+                }
+            }
         }
 
         /// <summary>
@@ -64,7 +90,46 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public override int PassCount
         {
-            get { return _passCount; }
+            get
+            {
+#if PARALLEL
+                RwLock.EnterReadLock();
+#endif
+                try
+                {
+                    return _passCount;
+                }
+                finally
+                {
+#if PARALLEL
+                    RwLock.ExitReadLock();
+#endif
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the number of test cases that passed
+        /// when running the test and all its children.
+        /// </summary>
+        public override int WarningCount
+        {
+            get
+            {
+#if PARALLEL
+                RwLock.EnterReadLock();
+#endif
+                try
+                {
+                    return _warningCount;
+                }
+                finally
+                {
+#if PARALLEL
+                    RwLock.ExitReadLock();
+#endif
+                }
+            }
         }
 
         /// <summary>
@@ -73,7 +138,22 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public override int SkipCount
         {
-            get { return _skipCount; }
+            get
+            {
+#if PARALLEL
+                RwLock.EnterReadLock();
+#endif
+                try
+                {
+                    return _skipCount;
+                }
+                finally
+                {
+#if PARALLEL
+                    RwLock.ExitReadLock();
+#endif
+                }
+           }
         }
 
         /// <summary>
@@ -82,7 +162,22 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public override int InconclusiveCount
         {
-            get { return _inconclusiveCount; }
+            get
+            {
+#if PARALLEL
+                RwLock.EnterReadLock();
+#endif
+                try
+                {
+                    return _inconclusiveCount;
+                }
+                finally
+                {
+#if PARALLEL
+                    RwLock.ExitReadLock();
+#endif
+                }
+            }
         }
 
         /// <summary>
@@ -90,13 +185,20 @@ namespace NUnit.Framework.Internal
         /// </summary>
         public override bool HasChildren
         {
-            get { return _children.Count > 0; }
+            get
+            {
+#if PARALLEL
+                return !_children.IsEmpty;
+#else
+                return _children.Count != 0;
+#endif
+            }
         }
 
         /// <summary>
         /// Gets the collection of child results.
         /// </summary>
-        public override IList<ITestResult> Children
+        public override IEnumerable<ITestResult> Children
         {
             get { return _children; }
         }
@@ -112,46 +214,62 @@ namespace NUnit.Framework.Internal
         /// <param name="result">The result to be added</param>
         public virtual void AddResult(ITestResult result)
         {
-            Children.Add(result);
+#if PARALLEL
+            _children.Enqueue(result);
+            RwLock.EnterWriteLock();
+            try
+            {
+                MergeChildResult(result);
+            }
+            finally
+            {
+                RwLock.ExitWriteLock();
+            }
+#else
+            _children.Add(result);
+            MergeChildResult(result);
+#endif
+        }
 
-            //AssertCount += result.AssertCount;
-
+        private void MergeChildResult(ITestResult childResult)
+        {
             // If this result is marked cancelled, don't change it
             if (ResultState != ResultState.Cancelled)
-                switch (result.ResultState.Status)
-                {
-                    case TestStatus.Passed:
+                UpdateResultState(childResult.ResultState);
 
-                        if (ResultState.Status == TestStatus.Inconclusive)
-                            SetResult(ResultState.Success);
+            InternalAssertCount += childResult.AssertCount;
+            _passCount += childResult.PassCount;
+            _failCount += childResult.FailCount;
+            _warningCount += childResult.WarningCount;
+            _skipCount += childResult.SkipCount;
+            _inconclusiveCount += childResult.InconclusiveCount;
+        }
 
-                        break;
+        private void UpdateResultState(ResultState childResultState)
+        {
+            switch (childResultState.Status)
+            {
+                case TestStatus.Passed:
+                    if (ResultState.Status == TestStatus.Inconclusive)
+                        SetResult(ResultState.Success);
+                    break;
 
-                    case TestStatus.Failed:
+                case TestStatus.Warning:
+                    if (ResultState.Status == TestStatus.Inconclusive || ResultState.Status == TestStatus.Passed)
+                        SetResult(ResultState.ChildWarning, CHILD_WARNINGS_MESSAGE);
+                    break;
 
+                case TestStatus.Failed:
+                    if (ResultState.Status != TestStatus.Failed)
+                        SetResult(ResultState.ChildFailure, CHILD_ERRORS_MESSAGE);
+                    break;
 
-                        if (ResultState.Status != TestStatus.Failed)
-                            SetResult(ResultState.ChildFailure, CHILD_ERRORS_MESSAGE);
-
-                        break;
-
-                    case TestStatus.Skipped:
-
-                        if (result.ResultState.Label == "Ignored")
-                            if (ResultState.Status == TestStatus.Inconclusive || ResultState.Status == TestStatus.Passed)
-                                SetResult(ResultState.Ignored, CHILD_IGNORE_MESSAGE);
-
-                        break;
-
-                    default:
-                        break;
-                }
-
-            AssertCount += result.AssertCount;
-            _passCount += result.PassCount;
-            _failCount += result.FailCount;
-            _skipCount += result.SkipCount;
-            _inconclusiveCount += result.InconclusiveCount;
+                case TestStatus.Skipped:
+                    if (childResultState.Label == "Ignored")
+                        if (ResultState.Status == TestStatus.Inconclusive || ResultState.Status == TestStatus.Passed)
+                            SetResult(ResultState.ChildIgnored, CHILD_IGNORE_MESSAGE);
+                    break;
+            }
         }
 
         #endregion

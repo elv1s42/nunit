@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -36,7 +36,6 @@ namespace NUnit.Framework.Internal.Filters
     /// 
     /// It would be better to use a Mocking-Framework for this.
     /// </summary>
-    [Serializable]
     public class MockTestFilter : TestFilter
     {
         public enum MatchFunction

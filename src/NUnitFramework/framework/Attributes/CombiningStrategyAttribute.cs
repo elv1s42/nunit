@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014-2015 Charlie Poole
+// Copyright (c) 2014-2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,9 +24,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-#if NETCF
-using System.Linq;
-#endif
+using System.Reflection;
 
 namespace NUnit.Framework
 {
@@ -42,14 +40,14 @@ namespace NUnit.Framework
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
     public abstract class CombiningStrategyAttribute : NUnitAttribute, ITestBuilder, IApplyToTest
     {
-        private NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
+        private readonly NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
 
-        private ICombiningStrategy _strategy;
-        private IParameterDataProvider _dataProvider;
+        private readonly ICombiningStrategy _strategy;
+        private readonly IParameterDataProvider _dataProvider;
 
         /// <summary>
         /// Construct a CombiningStrategyAttribute incorporating an
-        /// ICombiningStrategy and an IParamterDataProvider.
+        /// ICombiningStrategy and an IParameterDataProvider.
         /// </summary>
         /// <param name="strategy">Combining strategy to be used in combining data</param>
         /// <param name="provider">An IParameterDataProvider to supply data</param>
@@ -74,63 +72,15 @@ namespace NUnit.Framework
         #region ITestBuilder Members
 
         /// <summary>
-        /// Construct one or more TestMethods from a given MethodInfo,
-        /// using available parameter data.
+        /// Builds any number of tests from the specified method and context.
         /// </summary>
-        /// <param name="method">The MethodInfo for which tests are to be constructed.</param>
-        /// <param name="suite">The suite to which the tests will be added.</param>
-        /// <returns>One or more TestMethods</returns>
-        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
+        /// <param name="method">The method to be used as a test.</param>
+        /// <param name="suite">The parent to which the test will be added.</param>
+        public IEnumerable<TestMethod> BuildFrom(FixtureMethod method, Test suite)
         {
             List<TestMethod> tests = new List<TestMethod>();
 
-#if NETCF
-            if (method.ContainsGenericParameters)
-            {
-                var genericParams = method.GetGenericArguments();
-                var numGenericParams = genericParams.Length;
-
-                var o = new object();
-                var tryArgs = Enumerable.Repeat(o, numGenericParams).ToArray();
-                IMethodInfo mi;
-
-                try
-                {
-                    // This fails if the generic method has constraints
-                    // that are not met by object.
-                    mi = method.MakeGenericMethodEx(tryArgs);
-                    if (mi == null)
-                        return tests;
-                }
-                catch
-                {
-                    return tests;
-                }
-
-                var par = mi.GetParameters();
-
-                if (par.Length == 0)
-                    return tests;
-
-                var sourceData = par.Select(p => _dataProvider.GetDataFor(p)).ToArray();
-                foreach (var parms in _strategy.GetTestCases(sourceData))
-                {
-                    mi = method.MakeGenericMethodEx(parms.Arguments);
-                    if (mi == null)
-                    {
-                        var tm = new TestMethod(method, suite);
-                        tm.RunState = RunState.NotRunnable;
-                        tm.Properties.Set(PropertyNames.SkipReason, "Incompatible arguments");
-                        tests.Add(tm);
-                    }
-                    else
-                        tests.Add(_builder.BuildTestMethod(mi, suite, (TestCaseParameters)parms));
-                }
-
-                return tests;
-            }
-#endif
-            IParameterInfo[] parameters = method.GetParameters();
+            ParameterInfo[] parameters = method.Method.GetParameters();
 
             if (parameters.Length > 0)
             {
@@ -139,7 +89,7 @@ namespace NUnit.Framework
                 try
                 {
                     for (int i = 0; i < parameters.Length; i++)
-                        sources[i] = _dataProvider.GetDataFor(parameters[i]);
+                        sources[i] = _dataProvider.GetDataFor(method.FixtureType, parameters[i]);
                 }
                 catch (InvalidDataSourceException ex)
                 {

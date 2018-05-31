@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007-2015 Charlie Poole
+// Copyright (c) 2007-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,8 +29,7 @@ namespace NUnit.Framework.Internal.Filters
     /// <summary>
     /// NotFilter negates the operation of another filter
     /// </summary>
-    [Serializable]
-    public class NotFilter : TestFilter
+    internal class NotFilter : TestFilter
     {
         /// <summary>
         /// Construct a not filter on another filter
@@ -44,7 +43,7 @@ namespace NUnit.Framework.Internal.Filters
         /// <summary>
         /// Gets the base filter
         /// </summary>
-        public TestFilter BaseFilter { get; private set; }
+        public TestFilter BaseFilter { get; }
 
         /// <summary>
         /// Determine if a particular test passes the filter criteria. The default 
@@ -71,11 +70,11 @@ namespace NUnit.Framework.Internal.Filters
         }
 
         /// <summary>
-        /// Determine if a test matches the filter expicitly. That is, it must
-        /// be a direct match of the test itself or one of it's children.
+        /// Determine if a test matches the filter explicitly. That is, it must
+        /// be a direct match of the test itself or one of its children.
         /// </summary>
         /// <param name="test">The test to which the filter is applied</param>
-        /// <returns>True if the test matches the filter explicityly, otherwise false</returns>
+        /// <returns>True if the test matches the filter explicitly, otherwise false</returns>
         public override bool IsExplicitMatch(ITest test)
         {
             return false;

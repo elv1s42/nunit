@@ -1,8 +1,8 @@
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
 using System;
 using System.Threading.Tasks;
 
-#if NET_4_0
+#if NET40
 using Task = System.Threading.Tasks.TaskEx;
 #endif
 

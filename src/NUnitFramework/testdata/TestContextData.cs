@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,8 +21,9 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-using System;
+using System.Collections.Generic;
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
 
 namespace NUnit.TestData.TestContextData
 {
@@ -65,6 +66,36 @@ namespace NUnit.TestData.TestContextData
         }
     }
 
+    public class AssertionResultFixture
+    {
+        public IEnumerable<AssertionResult> Assertions;
+
+        public void ThreeAsserts_TwoFailed()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(2 + 2, Is.EqualTo(5));
+                Assert.That(2 + 2, Is.EqualTo(4));
+                Assert.That(2 + 2, Is.EqualTo(5));
+
+                Assertions = TestContext.CurrentContext.Result.Assertions;
+            });
+        }
+
+        public void WarningPlusFailedAssert()
+        {
+            Warn.Unless(2 + 2, Is.EqualTo(5));
+
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(2 + 2, Is.EqualTo(5));
+
+                Assertions = TestContext.CurrentContext.Result.Assertions;
+            });
+        }
+    }
+
     [TestFixture]
     public class TestTestContextInTearDown
     {
@@ -92,6 +123,7 @@ namespace NUnit.TestData.TestContextData
     {
         public int PassCount { get; private set; }
         public int FailCount { get; private set; }
+        public int WarningCount { get; private set; }
         public int SkipCount { get; private set; }
         public int InconclusiveCount { get; private set; }
         public string Message { get; private set; }
@@ -162,6 +194,7 @@ namespace NUnit.TestData.TestContextData
         {
             PassCount = TestContext.CurrentContext.Result.PassCount;
             FailCount = TestContext.CurrentContext.Result.FailCount;
+            WarningCount = TestContext.CurrentContext.Result.WarningCount;
             SkipCount = TestContext.CurrentContext.Result.SkipCount;
             InconclusiveCount = TestContext.CurrentContext.Result.InconclusiveCount;
             Message = TestContext.CurrentContext.Result.Message;

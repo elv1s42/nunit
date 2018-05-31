@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -54,10 +54,14 @@ namespace NUnit.Framework.Internal
         /// Length of a message prefix
         /// </summary>
         public static readonly int PrefixLength = Pfx_Expected.Length;
-        
+
         #endregion
 
+        #region Instance Fields
         private int maxLineLength = DEFAULT_LINE_LENGTH;
+        private bool _sameValDiffTypes = false;
+        private string _expectedType, _actualType;
+        #endregion
 
         #region Constructors
         /// <summary>
@@ -91,7 +95,7 @@ namespace NUnit.Framework.Internal
 
         #region Public Methods - High Level
         /// <summary>
-        /// Method to write single line  message with optional args, usually
+        /// Method to write single line message with optional args, usually
         /// written to precede the general failure message, at a given 
         /// indentation level.
         /// </summary>
@@ -107,7 +111,7 @@ namespace NUnit.Framework.Internal
                 if (args != null && args.Length > 0)
                     message = string.Format(message, args);
 
-                WriteLine(MsgUtils.EscapeControlChars(message));
+                WriteLine(MsgUtils.EscapeNullCharacters(message));
             }
         }
 
@@ -121,24 +125,39 @@ namespace NUnit.Framework.Internal
         {
             WriteExpectedLine(result);
             WriteActualLine(result);
+            WriteAdditionalLine(result);
         }
 
         /// <summary>
-        /// Display Expected and Actual lines for given _values. This
+        /// Gets the unique type name between expected and actual.
+        /// </summary>
+        /// <param name="expected">The expected value</param>
+        /// <param name="actual">The actual value causing the failure</param>
+        /// <param name="expectedType">Output of the unique type name for expected</param>
+        /// <param name="actualType">Output of the unique type name for actual</param>
+        private void ResolveTypeNameDifference(object expected, object actual, out string expectedType, out string actualType) {
+            TypeNameDifferenceResolver resolver = new TypeNameDifferenceResolver();
+            resolver.ResolveTypeNameDifference(expected, actual, out expectedType, out actualType);
+
+            expectedType = $" ({expectedType})";
+            actualType = $" ({actualType})";
+        }
+
+        /// <summary>
+        /// Display Expected and Actual lines for given values. This
         /// method may be called by constraints that need more control over
-        /// the display of actual and expected _values than is provided
+        /// the display of actual and expected values than is provided
         /// by the default implementation.
         /// </summary>
         /// <param name="expected">The expected value</param>
         /// <param name="actual">The actual value causing the failure</param>
         public override void DisplayDifferences(object expected, object actual)
         {
-            WriteExpectedLine(expected);
-            WriteActualLine(actual);
+            DisplayDifferences(expected, actual,null);
         }
 
         /// <summary>
-        /// Display Expected and Actual lines for given _values, including
+        /// Display Expected and Actual lines for given values, including
         /// a tolerance value on the expected line.
         /// </summary>
         /// <param name="expected">The expected value</param>
@@ -146,12 +165,17 @@ namespace NUnit.Framework.Internal
         /// <param name="tolerance">The tolerance within which the test was made</param>
         public override void DisplayDifferences(object expected, object actual, Tolerance tolerance)
         {
+            if (expected != null && actual != null && expected.GetType() != actual.GetType() && MsgUtils.FormatValue(expected) == MsgUtils.FormatValue(actual))
+            {
+                _sameValDiffTypes = true;
+                ResolveTypeNameDifference(expected, actual, out _expectedType, out _actualType);
+            }
             WriteExpectedLine(expected, tolerance);
-            WriteActualLine(actual);
+            WriteActualLine(actual);    
         }
 
         /// <summary>
-        /// Display the expected and actual string _values on separate lines.
+        /// Display the expected and actual string values on separate lines.
         /// If the mismatch parameter is >=0, an additional line is displayed
         /// line containing a caret that points to the mismatch point.
         /// </summary>
@@ -252,11 +276,13 @@ namespace NUnit.Framework.Internal
         {
             Write(Pfx_Expected);
             Write(MsgUtils.FormatValue(expected));
-
+            if (_sameValDiffTypes) {            
+                Write(_expectedType);
+            }
             if (tolerance != null && !tolerance.IsUnsetOrDefault)
             {
                 Write(" +/- ");
-                Write(MsgUtils.FormatValue(tolerance.Value));
+                Write(MsgUtils.FormatValue(tolerance.Amount));
                 if (tolerance.Mode != ToleranceMode.Linear)
                     Write(" {0}", tolerance.Mode);
             }
@@ -276,6 +302,11 @@ namespace NUnit.Framework.Internal
             //WriteLine(MsgUtils.FormatValue(result.ActualValue));
         }
 
+        private void WriteAdditionalLine(ConstraintResult result)
+        {
+            result.WriteAdditionalLinesTo(this);
+        }
+
         /// <summary>
         /// Write the generic 'Actual' line for a given value
         /// </summary>
@@ -284,6 +315,10 @@ namespace NUnit.Framework.Internal
         {
             Write(Pfx_Actual);
             WriteActualValue(actual);
+            if (_sameValDiffTypes)
+            {
+                Write(_actualType);
+            }
             WriteLine();
         }
 

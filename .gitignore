@@ -5,6 +5,7 @@
 *.suo
 *.user
 *.sln.docstates
+launchSettings.json
 
 # Build results
 
@@ -15,7 +16,8 @@ build/
 [Bb]in/
 [Oo]bj/
 .vs/
-tools/Cake
+tools
+!tools/packages.config
 
 # Enable "build/" folder in the NuGet Packages folder since NuGet packages use it for MSBuild targets
 !packages/*/build/
@@ -177,3 +179,6 @@ package
 images
 MockAssemblyResult.xml
 PortabilityAnalysis*.html
+project.lock.json
+*.project.lock.json
+.dotnet

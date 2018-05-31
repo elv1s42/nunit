@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,8 +22,9 @@
 // ***********************************************************************
 
 using System;
-using System.Collections.Generic;
 using System.Reflection;
+using NUnit.Compatibility;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -50,11 +51,7 @@ namespace NUnit.Framework.Constraints
         {
             get
             {
-#if PORTABLE
                 var name = predicate.GetMethodInfo().Name;
-#else
-                var name = predicate.Method.Name;
-#endif
                 return name.StartsWith("<")
                     ? "value matching lambda expression"
                     : "value matching " + name;
@@ -67,10 +64,9 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            if (!(actual is T))
-                throw new ArgumentException("The actual value is not of type " + typeof(T).Name, "actual");
+            var argument = ConstraintUtils.RequireActual<T>(actual, nameof(actual), allowNull: true);
 
-            return new ConstraintResult(this, actual, predicate((T)(object)actual));
+            return new ConstraintResult(this, actual, predicate(argument));
         }
     }
 }

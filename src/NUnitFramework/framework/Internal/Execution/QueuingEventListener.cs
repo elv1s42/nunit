@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,14 +33,17 @@ namespace NUnit.Framework.Internal.Execution
     /// </summary>
     public class QueuingEventListener : ITestListener
     {
-        private EventQueue events = new EventQueue();
+        /// <summary>
+        /// The EventQueue created and filled by this listener
+        /// </summary>
+        public EventQueue Events { get; }
 
         /// <summary>
-        /// The EvenQueue created and filled by this listener
+        /// Construct a QueuingEventListener
         /// </summary>
-        public EventQueue Events
+        public QueuingEventListener()
         {
-            get { return events; }
+            Events = new EventQueue();
         }
 
         #region EventListener Methods
@@ -50,7 +53,7 @@ namespace NUnit.Framework.Internal.Execution
         /// <param name="test">The test that is starting</param>
         public void TestStarted(ITest test)
         {
-            events.Enqueue( new TestStartedEvent( test ) );
+            Events.Enqueue( new TestStartedEvent( test ) );
         }
 
         /// <summary>
@@ -59,7 +62,16 @@ namespace NUnit.Framework.Internal.Execution
         /// <param name="result">Result of the test case</param>
         public void TestFinished(ITestResult result)
         {
-            events.Enqueue( new TestFinishedEvent( result ) );
+            Events.Enqueue( new TestFinishedEvent( result ) );
+        }
+
+        /// <summary>
+        /// Called when a test produces output for immediate display
+        /// </summary>
+        /// <param name="output">A TestOutput object containing the text to display</param>
+        public void TestOutput(TestOutput output)
+        {
+            Events.Enqueue(new TestOutputEvent(output));
         }
 
         #endregion

@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2012-2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2012-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -25,7 +25,7 @@ using System;
 using System.Text.RegularExpressions;
 using System.Xml;
 
-#if PORTABLE || SILVERLIGHT
+#if NETSTANDARD1_6
 using System.Xml.Linq;
 #endif
 
@@ -34,7 +34,7 @@ namespace NUnit.Framework.Interfaces
     /// <summary>
     /// TNode represents a single node in the XML representation
     /// of a Test or TestResult. It replaces System.Xml.XmlNode and
-    /// System.Xml.Linq.XElement, providing a minimal set of methods 
+    /// System.Xml.Linq.XElement, providing a minimal set of methods
     /// for operating on the XML in a platform-independent manner.
     /// </summary>
     public class TNode
@@ -79,7 +79,7 @@ namespace NUnit.Framework.Interfaces
         /// <summary>
         /// Gets the name of the node
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; }
 
         /// <summary>
         /// Gets the value of the node
@@ -89,17 +89,17 @@ namespace NUnit.Framework.Interfaces
         /// <summary>
         /// Gets a flag indicating whether the value should be output using CDATA.
         /// </summary>
-        public bool ValueIsCDATA { get; private set; }
+        public bool ValueIsCDATA { get; }
 
         /// <summary>
         /// Gets the dictionary of attributes
         /// </summary>
-        public AttributeDictionary Attributes { get; private set; }
+        public AttributeDictionary Attributes { get; }
 
         /// <summary>
         /// Gets a list of child nodes
         /// </summary>
-        public NodeList ChildNodes { get; private set; }
+        public NodeList ChildNodes { get; }
 
         /// <summary>
         /// Gets the first ChildNode
@@ -119,7 +119,7 @@ namespace NUnit.Framework.Interfaces
                 var stringWriter = new System.IO.StringWriter();
                 var settings = new XmlWriterSettings();
                 settings.ConformanceLevel = ConformanceLevel.Fragment;
-                
+
                 using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter, settings))
                 {
                     WriteTo(xmlWriter);
@@ -134,13 +134,13 @@ namespace NUnit.Framework.Interfaces
         #region Static Methods
 
         /// <summary>
-        /// Create a TNode from it's XML text representation
+        /// Create a TNode from its XML text representation
         /// </summary>
         /// <param name="xmlText">The XML text to be parsed</param>
         /// <returns>A TNode</returns>
         public static TNode FromXml(string xmlText)
         {
-#if PORTABLE || SILVERLIGHT
+#if NETSTANDARD1_6
             return FromXml(XElement.Parse(xmlText));
 #else
             var doc = new XmlDocument();
@@ -203,7 +203,7 @@ namespace NUnit.Framework.Interfaces
         }
 
         /// <summary>
-        /// Finds a single descendant of this node matching an xpath
+        /// Finds a single descendant of this node matching an XPath
         /// specification. The format of the specification is
         /// limited to what is needed by NUnit and its tests.
         /// </summary>
@@ -219,7 +219,7 @@ namespace NUnit.Framework.Interfaces
         }
 
         /// <summary>
-        /// Finds all descendants of this node matching an xpath
+        /// Finds all descendants of this node matching an XPath
         /// specification. The format of the specification is
         /// limited to what is needed by NUnit and its tests.
         /// </summary>
@@ -230,7 +230,7 @@ namespace NUnit.Framework.Interfaces
 
             return ApplySelection(nodeList, xpath);
         }
-        
+
         /// <summary>
         /// Writes the XML representation of the node to an XmlWriter
         /// </summary>
@@ -258,7 +258,7 @@ namespace NUnit.Framework.Interfaces
 
         #region Helper Methods
 
-#if PORTABLE || SILVERLIGHT
+#if NETSTANDARD1_6
         private static TNode FromXml(XElement xElement)
         {
             TNode tNode = new TNode(xElement.Name.ToString(), xElement.Value);
@@ -289,11 +289,11 @@ namespace NUnit.Framework.Interfaces
 
         private static NodeList ApplySelection(NodeList nodeList, string xpath)
         {
-            Guard.ArgumentNotNullOrEmpty(xpath, "xpath");
+            Guard.ArgumentNotNullOrEmpty(xpath, nameof(xpath));
             if (xpath[0] == '/')
-                throw new ArgumentException("XPath expressions starting with '/' are not supported", "xpath");
+                throw new ArgumentException("XPath expressions starting with '/' are not supported", nameof(xpath));
             if (xpath.IndexOf("//") >= 0)
-                throw new ArgumentException("XPath expressions with '//' are not supported", "xpath");
+                throw new ArgumentException("XPath expressions with '//' are not supported", nameof(xpath));
 
             string head = xpath;
             string tail = null;
@@ -318,6 +318,7 @@ namespace NUnit.Framework.Interfaces
                 : resultNodes;
         }
 
+        private static readonly Regex InvalidXmlCharactersRegex = new Regex("[^\u0009\u000a\u000d\u0020-\ufffd]|([\ud800-\udbff](?![\udc00-\udfff]))|((?<![\ud800-\udbff])[\udc00-\udfff])", RegexOptions.Compiled);
         private static string EscapeInvalidXmlCharacters(string str)
         {
             if (str == null) return null;
@@ -325,8 +326,7 @@ namespace NUnit.Framework.Interfaces
             // Based on the XML spec http://www.w3.org/TR/xml/#charsets
             // For detailed explanation of the regex see http://mnaoumov.wordpress.com/2014/06/15/escaping-invalid-xml-unicode-characters/
 
-            var invalidXmlCharactersRegex = new Regex("[^\u0009\u000a\u000d\u0020-\ufffd]|([\ud800-\udbff](?![\udc00-\udfff]))|((?<![\ud800-\udbff])[\udc00-\udfff])");
-            return invalidXmlCharactersRegex.Replace(str, match => CharToUnicodeSequence(match.Value[0]));
+            return InvalidXmlCharactersRegex.Replace(str, match => CharToUnicodeSequence(match.Value[0]));
         }
 
         private static string CharToUnicodeSequence(char symbol)
@@ -362,26 +362,26 @@ namespace NUnit.Framework.Interfaces
 
         class NodeFilter
         {
-            private string _nodeName;
-            private string _propName;
-            private string _propValue;
+            private readonly string _nodeName;
+            private readonly string _propName;
+            private readonly string _propValue;
 
             public NodeFilter(string xpath)
             {
                 _nodeName = xpath;
-                
+
                 int lbrack = xpath.IndexOf('[');
                 if (lbrack >= 0)
                 {
                     if (!xpath.EndsWith("]"))
-                        throw new ArgumentException("Invalid property expression", "xpath");
+                        throw new ArgumentException("Invalid property expression", nameof(xpath));
 
                     _nodeName = xpath.Substring(0, lbrack);
                     string filter = xpath.Substring(lbrack+1, xpath.Length - lbrack - 2);
 
                     int equals = filter.IndexOf('=');
                     if (equals < 0 || filter[0] != '@')
-                        throw new ArgumentException("Invalid property expression", "xpath");
+                        throw new ArgumentException("Invalid property expression", nameof(xpath));
 
                     _propName = filter.Substring(1, equals - 1).Trim();
                     _propValue = filter.Substring(equals + 1).Trim(new char[] { ' ', '"', '\'' });
@@ -392,10 +392,10 @@ namespace NUnit.Framework.Interfaces
             {
                 if (node.Name != _nodeName)
                     return false;
-                
+
                 if (_propName == null)
                     return true;
-                
+
                 return node.Attributes[_propName] == _propValue;
             }
         }

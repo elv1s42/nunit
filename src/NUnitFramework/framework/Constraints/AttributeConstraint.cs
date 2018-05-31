@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,7 +22,7 @@
 // ***********************************************************************
 using System;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 
 namespace NUnit.Framework.Constraints
 {
@@ -46,11 +46,11 @@ namespace NUnit.Framework.Constraints
             : base(baseConstraint)
         {
             this.expectedType = type;
-            this.descriptionPrefix = "attribute " + expectedType.FullName;
+            this.DescriptionPrefix = "attribute " + expectedType.FullName;
 
             if (!typeof(Attribute).GetTypeInfo().IsAssignableFrom(expectedType.GetTypeInfo()))
                 throw new ArgumentException(string.Format(
-                    "Type {0} is not an attribute", expectedType), "type");
+                    "Type {0} is not an attribute", expectedType), nameof(type));
         }
 
         /// <summary>
@@ -60,13 +60,13 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            Guard.ArgumentNotNull(actual, "actual");
+            Guard.ArgumentNotNull(actual, nameof(actual));
             Attribute[] attrs = AttributeHelper.GetCustomAttributes(actual, expectedType, true);
             if (attrs.Length == 0)
-                throw new ArgumentException(string.Format("Attribute {0} was not found", expectedType), "actual");
+                throw new ArgumentException(string.Format("Attribute {0} was not found", expectedType), nameof(actual));
 
             attrFound = attrs[0];
-            return baseConstraint.ApplyTo(attrFound);
+            return BaseConstraint.ApplyTo(attrFound);
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         protected override string GetStringRepresentation()
         {
-            return string.Format("<attribute {0} {1}>", expectedType, baseConstraint);
+            return string.Format("<attribute {0} {1}>", expectedType, BaseConstraint);
         }
     }
 }

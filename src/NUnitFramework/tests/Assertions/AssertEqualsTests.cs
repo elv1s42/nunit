@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2004 Charlie Poole
+// Copyright (c) 2004 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,14 +21,13 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-using System;
-using System.Globalization;
-using System.IO;
 using NUnit.TestUtilities;
+using System;
+using System.IO;
 
 namespace NUnit.Framework.Assertions
 {
-    [TestFixture]
+	[TestFixture]
     public class AssertEqualsTests
     {
         [Test]
@@ -57,7 +56,7 @@ namespace NUnit.Framework.Assertions
         }
 
         [Test]
-        public void Bug524CharIntComparision()
+        public void Bug524CharIntComparison()
         {
             char c = '\u0000';
             Assert.AreEqual(0, c);
@@ -71,7 +70,7 @@ namespace NUnit.Framework.Assertions
         }
 
         [Test]
-        public void CharCharComparision()
+        public void CharCharComparison()
         {
             char c = 'a';
             Assert.That(c, Is.EqualTo('a'));
@@ -99,10 +98,10 @@ namespace NUnit.Framework.Assertions
             string expected = "Hello NUnit";
 
             var expectedMessage =
-                "  Expected string length 11 but was 13. Strings differ at index 0." + Env.NewLine +
-                "  Expected: \"Hello NUnit\"" + Env.NewLine +
-                "  But was:  \"Goodbye JUnit\"" + Env.NewLine +
-                "  -----------^" + Env.NewLine;
+                "  Expected string length 11 but was 13. Strings differ at index 0." + Environment.NewLine +
+                "  Expected: \"Hello NUnit\"" + Environment.NewLine +
+                "  But was:  \"Goodbye JUnit\"" + Environment.NewLine +
+                "  -----------^" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(expected, junitString));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -112,8 +111,8 @@ namespace NUnit.Framework.Assertions
         public void EqualsNaNFails() 
         {
             var expectedMessage =
-                "  Expected: 1.234d +/- 0.0d" + Env.NewLine +
-                "  But was:  " + Double.NaN + Env.NewLine;
+                "  Expected: 1.234d +/- 0.0d" + Environment.NewLine +
+                "  But was:  " + Double.NaN + Environment.NewLine;
             
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(1.234, Double.NaN, 0.0));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -124,8 +123,8 @@ namespace NUnit.Framework.Assertions
         public void NanEqualsFails() 
         {
             var expectedMessage =
-                "  Expected: " + Double.NaN + Env.NewLine +
-                "  But was:  1.234d" + Env.NewLine;
+                "  Expected: " + Double.NaN + Environment.NewLine +
+                "  But was:  1.234d" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(Double.NaN, 1.234, 0.0));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -153,8 +152,8 @@ namespace NUnit.Framework.Assertions
         public void PosInfinityNotEquals() 
         {
             var expectedMessage =
-                "  Expected: " + Double.PositiveInfinity + Env.NewLine +
-                "  But was:  1.23d" + Env.NewLine;
+                "  Expected: " + Double.PositiveInfinity + Environment.NewLine +
+                "  But was:  1.23d" + Environment.NewLine;
             
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(Double.PositiveInfinity, 1.23, 0.0));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -164,8 +163,8 @@ namespace NUnit.Framework.Assertions
         public void PosInfinityNotEqualsNegInfinity() 
         {
             var expectedMessage =
-                "  Expected: " + Double.PositiveInfinity + Env.NewLine +
-                "  But was:  " + Double.NegativeInfinity + Env.NewLine;
+                "  Expected: " + Double.PositiveInfinity + Environment.NewLine +
+                "  But was:  " + Double.NegativeInfinity + Environment.NewLine;
             
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(Double.PositiveInfinity, Double.NegativeInfinity, 0.0));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -175,14 +174,13 @@ namespace NUnit.Framework.Assertions
         public void SinglePosInfinityNotEqualsNegInfinity() 
         {
             var expectedMessage =
-                "  Expected: " + Double.PositiveInfinity + Env.NewLine +
-                "  But was:  " + Double.NegativeInfinity + Env.NewLine;
+                "  Expected: " + Double.PositiveInfinity + Environment.NewLine +
+                "  But was:  " + Double.NegativeInfinity + Environment.NewLine;
             
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(float.PositiveInfinity, float.NegativeInfinity, (float)0.0));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
 
-#if !NETCF
         [Test]
         public void EqualsThrowsException()
         {
@@ -196,7 +194,6 @@ namespace NUnit.Framework.Assertions
             object o = new object();
             Assert.Throws<InvalidOperationException>(() => Assert.ReferenceEquals(o, o));
         }
-#endif
         
         [Test]
         public void Float() 
@@ -385,8 +382,8 @@ namespace NUnit.Framework.Assertions
         {
             MyEnum actual = MyEnum.a;
             var expectedMessage =
-                "  Expected: c" + Env.NewLine +
-                "  But was:  a" + Env.NewLine;
+                "  Expected: c" + Environment.NewLine +
+                "  But was:  a" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual( MyEnum.c, actual ));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
@@ -401,19 +398,30 @@ namespace NUnit.Framework.Assertions
         }
 
         [Test]
-        public void DateTimeNotEqual()
+        public void DateTimeNotEqual_DifferenceInHours()
         {
             DateTime dt1 = new DateTime( 2005, 6, 1, 7, 0, 0 );
             DateTime dt2 = new DateTime( 2005, 6, 1, 0, 0, 0 );
             var expectedMessage =
-                "  Expected: 2005-06-01 07:00:00.000" + Env.NewLine +
-                "  But was:  2005-06-01 00:00:00.000" + Env.NewLine;
+                "  Expected: 2005-06-01 07:00:00" + Environment.NewLine +
+                "  But was:  2005-06-01 00:00:00" + Environment.NewLine;
+
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(dt1, dt2));
+            Assert.That(ex.Message, Is.EqualTo(expectedMessage));
+        }
+        [Test]
+        public void DateTimeNotEqual_DifferenceInTicks()
+        {
+            DateTime dt1 = new DateTime(1914, 06, 28, 12, 00, 00);
+            DateTime dt2 = dt1.AddTicks(666);
+            var expectedMessage =
+                "  Expected: 1914-06-28 12:00:00" + Environment.NewLine +
+                "  But was:  1914-06-28 12:00:00.0000666" + Environment.NewLine;
 
             var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(dt1, dt2));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
 
-#if !PORTABLE
         [Test]
         public void DirectoryInfoEqual()
         {
@@ -431,10 +439,9 @@ namespace NUnit.Framework.Assertions
             using (var one = new TestDirectory())
             using (var two = new TestDirectory())
             {
-                var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(one.Directory, two.Directory));
+                Assert.Throws<AssertionException>(() => Assert.AreEqual(one.Directory, two.Directory));
             }
         }
-#endif
 
         private enum MyEnum
         {
@@ -444,157 +451,83 @@ namespace NUnit.Framework.Assertions
         [Test]
         public void DoubleNotEqualMessageDisplaysAllDigits()
         {
-            string message = "";
+            double d1 = 36.1;
+            double d2 = 36.099999999999994;
 
-            try
-            {
-                double d1 = 36.1;
-                double d2 = 36.099999999999994;
-                Assert.AreEqual( d1, d2 );
-            }
-            catch(AssertionException ex)
-            {
-                message = ex.Message;
-            }
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(d1, d2) );
 
-            if ( message == "" )
-                Assert.Fail( "Should have thrown an AssertionException" );
-
+            var message = ex.Message;
             int i = message.IndexOf('3');
             int j = message.IndexOf( 'd', i );
             string expected = message.Substring( i, j - i + 1 );
             i = message.IndexOf( '3', j );
             j = message.IndexOf( 'd', i );
             string actual = message.Substring( i , j - i + 1 );
+
             Assert.AreNotEqual( expected, actual );
         }
 
         [Test]
         public void FloatNotEqualMessageDisplaysAllDigits()
         {
-            string message = "";
+            float f1 = 36.125F;
+            float f2 = 36.125004F;
 
-            try
-            {
-                float f1 = 36.125F;
-                float f2 = 36.125004F;
-                Assert.AreEqual( f1, f2 );
-            }
-            catch(AssertionException ex)
-            {
-                message = ex.Message;
-            }
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(f1, f2));
 
-            if ( message == "" )
-                Assert.Fail( "Should have thrown an AssertionException" );
-
+            var message = ex.Message;
             int i = message.IndexOf( '3' );
             int j = message.IndexOf( 'f', i );
             string expected = message.Substring( i, j - i + 1 );
             i = message.IndexOf( '3', j );
             j = message.IndexOf( 'f', i );
             string actual = message.Substring( i, j - i + 1 );
+
             Assert.AreNotEqual( expected, actual );
         }
 
         [Test]
         public void DoubleNotEqualMessageDisplaysTolerance()
         {
-            string message = "";
+            double d1 = 0.15;
+            double d2 = 0.12;
+            double tol = 0.005;
 
-            try
-            {
-                double d1 = 0.15;
-                double d2 = 0.12;
-                double tol = 0.005;
-                Assert.AreEqual(d1, d2, tol);
-            }
-            catch (AssertionException ex)
-            {
-                message = ex.Message;
-            }
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(d1, d2, tol));
 
-            if (message == "")
-                Assert.Fail("Should have thrown an AssertionException");
-
-            Assert.That(message, Does.Contain("+/- 0.005"));
+            Assert.That(ex.Message, Does.Contain("+/- 0.005"));
         }
 
         [Test]
         public void FloatNotEqualMessageDisplaysTolerance()
         {
-            string message = "";
+            float f1 = 0.15F;
+            float f2 = 0.12F;
+            float tol = 0.001F;
 
-            try
-            {
-                float f1 = 0.15F;
-                float f2 = 0.12F;
-                float tol = 0.001F;
-                Assert.AreEqual( f1, f2, tol );
-            }
-            catch( AssertionException ex )
-            {
-                message = ex.Message;
-            }
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual( f1, f2, tol ));
 
-            if ( message == "" )
-                Assert.Fail( "Should have thrown an AssertionException" );
-
-            Assert.That(message, Does.Contain( "+/- 0.001"));
+            Assert.That(ex.Message, Does.Contain( "+/- 0.001"));
         }
 
-        [Test]
+        [Test, DefaultFloatingPointTolerance(0.005)]
         public void DoubleNotEqualMessageDisplaysDefaultTolerance()
         {
-            string message = "";
-            GlobalSettings.DefaultFloatingPointTolerance = 0.005d;
+            double d1 = 0.15;
+            double d2 = 0.12;
 
-            try
-            {
-                double d1 = 0.15;
-                double d2 = 0.12;
-                Assert.AreEqual(d1, d2);
-            }
-            catch (AssertionException ex)
-            {
-                message = ex.Message;
-            }
-            finally
-            {
-                GlobalSettings.DefaultFloatingPointTolerance = 0.0d;
-            }
-
-            if (message == "")
-                Assert.Fail("Should have thrown an AssertionException");
-
-            Assert.That(message, Does.Contain("+/- 0.005"));
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(d1, d2));
+            Assert.That(ex.Message, Does.Contain("+/- 0.005"));
         }
 
-        [Test]
+        [Test, DefaultFloatingPointTolerance(0.005)]
         public void DoubleNotEqualWithNanDoesNotDisplayDefaultTolerance()
         {
-            string message = "";
-            GlobalSettings.DefaultFloatingPointTolerance = 0.005d;
+            double d1 = double.NaN;
+            double d2 = 0.12;
 
-            try
-            {
-                double d1 = double.NaN;
-                double d2 = 0.12;
-                Assert.AreEqual(d1, d2);
-            }
-            catch (AssertionException ex)
-            {
-                message = ex.Message;
-            }
-            finally
-            {
-                GlobalSettings.DefaultFloatingPointTolerance = 0.0d;
-            }
-
-            if (message == "")
-                Assert.Fail("Should have thrown an AssertionException");
-
-            Assert.That(message.IndexOf("+/-") == -1);
+            var ex = Assert.Throws<AssertionException>(() => Assert.AreEqual(d1, d2));
+            Assert.That(ex.Message.IndexOf("+/-") == -1);
         }
 
         [Test]
@@ -640,7 +573,7 @@ namespace NUnit.Framework.Assertions
 
         class IntEquatable : IEquatable<int>
         {
-            int i;
+            readonly int i;
 
             public IntEquatable(int i)
             {
@@ -661,7 +594,7 @@ namespace NUnit.Framework.Assertions
     /// </summary>
     internal class ThrowsIfToStringIsCalled
     {
-        int _x;
+        readonly int _x;
 
         public ThrowsIfToStringIsCalled(int x)
         {

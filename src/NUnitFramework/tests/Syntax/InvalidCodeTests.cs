@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !(NETCOREAPP1_1 || NETCOREAPP2_0)
 using System;
 using System.Collections;
 using System.CodeDom.Compiler;
@@ -51,6 +51,7 @@ class SomeClass
         [TestCase("Is.And")]
         [TestCase("Is.All.And.And")]
         [TestCase("Is.Null.And.Throws")]
+        [TestCase("Has.Some.Items")]
         public void CodeShouldNotCompile(string fragment)
         {
             string code = template1.Replace("$FRAGMENT$", fragment);
@@ -79,6 +80,8 @@ class SomeClass
         [TestCase("Is.All")]
         [TestCase("Is.Not.All")]
         [TestCase("Is.All.Not")]
+        [TestCase("Has.Some")]
+        [TestCase("Has.Exactly(5)")]
         public void CodeShouldNotCompileAsFinishedConstraint(string fragment)
         {
             string code = template2.Replace("$FRAGMENT$", fragment);

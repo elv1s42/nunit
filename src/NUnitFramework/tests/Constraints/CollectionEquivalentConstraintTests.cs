@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -26,6 +26,7 @@ using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework.Internal;
 using NUnit.TestUtilities.Collections;
+using NUnit.TestUtilities.Comparers;
 
 namespace NUnit.Framework.Constraints
 {
@@ -86,6 +87,15 @@ namespace NUnit.Framework.Constraints
         }
 
         [Test]
+        public void EquivalentFailsWithExtraItemsInActual()
+        {
+            ICollection set1 = new SimpleObjectCollection("x", "y");
+            ICollection set2 = new SimpleObjectCollection("x", "x", "y");
+
+            Assert.False(new CollectionEquivalentConstraint(set1).ApplyTo(set2).IsSuccess);
+        }
+
+        [Test]
         public void EquivalentHandlesNull()
         {
             ICollection set1 = new SimpleObjectCollection(null, "x", null, "z");
@@ -104,7 +114,7 @@ namespace NUnit.Framework.Constraints
         }
 
         [Test]
-        [TestCaseSource(typeof(IgnoreCaseDataProvider), "TestCases")]
+        [TestCaseSource(typeof(IgnoreCaseDataProvider), nameof(IgnoreCaseDataProvider.TestCases))]
         public void HonorsIgnoreCase( IEnumerable expected, IEnumerable actual )
         {
             var constraint = new CollectionEquivalentConstraint( expected ).IgnoreCase;
@@ -131,7 +141,7 @@ namespace NUnit.Framework.Constraints
                     yield return new TestCaseData(new Dictionary<string, int> {{ "b", 2 }, { "a", 1 } }, new Dictionary<string, int> {{"A", 1}, {"b", 2}});
                     yield return new TestCaseData(new Dictionary<char, int> {{'A', 1 }}, new Dictionary<char, int> {{'a', 1}});
 
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
                     yield return new TestCaseData(new Hashtable {{1, "a"}, {2, "b"}}, new Hashtable {{1, "A"},{2, "B"}});
                     yield return new TestCaseData(new Hashtable {{1, 'A'}, {2, 'B'}}, new Hashtable {{1, 'a'},{2, 'b'}});
                     yield return new TestCaseData(new Hashtable {{"b", 2}, {"a", 1}}, new Hashtable {{"A", 1}, {"b", 2}});
@@ -162,8 +172,60 @@ namespace NUnit.Framework.Constraints
             Assert.That(ints, Is.EquivalentTo(strings).Using<int, string>((i, s) => i.ToString() == s));
         }
 
-#if (NET_4_0 || NET_4_5) && !PORTABLE
-        [Test, Platform("Net-3.5,Mono-3.5,Net-4.0,Mono-4.0,Net-4.5,Mono-4.5")]
+#if !(NET20 || NET35)
+        [Test]
+        public static void UsesProvidedGenericEqualityComparison()
+        {
+            var comparer = new GenericEqualityComparison<int>();
+            Assert.That(new[] { 1 }, Is.EquivalentTo(new[] { 1 }).Using<int>(comparer.Delegate));
+            Assert.That(comparer.WasCalled, "Comparer was not called");
+        }
+
+        [Test]
+        public static void UsesBooleanReturningDelegateWithImplicitParameterTypes()
+        {
+            Assert.That(new[] { 1 }, Is.EquivalentTo(new[] { 1 }).Using<int>((x, y) => x.Equals(y)));
+        }
+
+        [Test]
+        public void CheckCollectionEquivalentConstraintResultIsReturned()
+        {
+            IEnumerable<string> set1 = new List<string>() { "one" };
+            IEnumerable<string> set2 = new List<string>() { "two" };
+
+            Assert.IsInstanceOf(typeof(CollectionEquivalentConstraintResult),
+                new CollectionEquivalentConstraint(set1).ApplyTo(set2));
+        }
+
+        /// <summary>
+        /// A singular point test to ensure that the <see cref="ConstraintResult"/> returned by
+        /// <see cref="CollectionEquivalentConstraint"/> includes the feature of describing both
+        /// extra and missing elements when the collections are not equivalent.
+        /// </summary>
+        /// <remarks>
+        /// This is not intended to fully test the display of missing/extra elements, but to ensure
+        /// that the functionality is actually there.
+        /// </remarks>
+        [Test]
+        public void TestConstraintResultMessageDisplaysMissingAndExtraElements()
+        {
+            List<string> expectedCollection = new List<string>() { "one", "two" };
+            List<string> actualCollection = new List<string>() { "three", "one" };
+
+            ConstraintResult cr = new CollectionEquivalentConstraint(expectedCollection).ApplyTo(actualCollection);
+
+            TextMessageWriter writer = new TextMessageWriter();
+            cr.WriteMessageTo(writer);
+
+            string expectedMsg =
+                "  Expected: equivalent to < \"one\", \"two\" >" + Environment.NewLine +
+                "  But was:  < \"three\", \"one\" >" + Environment.NewLine +
+                "  Missing (1): < \"two\" >" + Environment.NewLine +
+                "  Extra (1): < \"three\" >" + Environment.NewLine;
+            Assert.AreEqual(expectedMsg, writer.ToString());
+        }
+
+        [Test]
         public void WorksWithHashSets()
         {
             var hash1 = new HashSet<string>(new string[] { "presto", "abracadabra", "hocuspocus" });
@@ -172,7 +234,7 @@ namespace NUnit.Framework.Constraints
             Assert.That(new CollectionEquivalentConstraint(hash1).ApplyTo(hash2).IsSuccess);
         }
 
-        [Test, Platform("Net-3.5,Mono-3.5,Net-4.0,Mono-4.0,Net-4.5,Mono-4.5")]
+        [Test]
         public void WorksWithHashSetAndArray()
         {
             var hash = new HashSet<string>(new string[] { "presto", "abracadabra", "hocuspocus" });
@@ -182,7 +244,7 @@ namespace NUnit.Framework.Constraints
             Assert.That(constraint.ApplyTo(array).IsSuccess);
         }
 
-        [Test, Platform("Net-3.5,Mono-3.5,Net-4.0,Mono-4.0,Net-4.5,Mono-4.5")]
+        [Test]
         public void WorksWithArrayAndHashSet()
         {
             var hash = new HashSet<string>(new string[] { "presto", "abracadabra", "hocuspocus" });
@@ -192,7 +254,7 @@ namespace NUnit.Framework.Constraints
             Assert.That(constraint.ApplyTo(hash).IsSuccess);
         }
 
-        [Test, Platform("Net-3.5,Mono-3.5,Net-4.0,Mono-4.0,Net-4.5,Mono-4.5")]
+        [Test]
         public void FailureMessageWithHashSetAndArray()
         {
             var hash = new HashSet<string>(new string[] { "presto", "abracadabra", "hocuspocus" });
@@ -204,10 +266,14 @@ namespace NUnit.Framework.Constraints
 
             TextMessageWriter writer = new TextMessageWriter();
             constraintResult.WriteMessageTo(writer);
-            Assert.That(writer.ToString(), Is.EqualTo(
+
+            var expectedMessage =
                 "  Expected: equivalent to < \"presto\", \"abracadabra\", \"hocuspocus\" >" + Environment.NewLine +
-                "  But was:  < \"abracadabra\", \"presto\", \"hocusfocus\" >" + Environment.NewLine));
-            //Console.WriteLine(writer.ToString());
+                "  But was:  < \"abracadabra\", \"presto\", \"hocusfocus\" >" + Environment.NewLine +
+                "  Missing (1): < \"hocuspocus\" >" + Environment.NewLine +
+                "  Extra (1): < \"hocusfocus\" >" + Environment.NewLine;
+
+            Assert.That(writer.ToString(), Is.EqualTo(expectedMessage));
         }
 #endif
     }

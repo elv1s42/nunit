@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008-2015 Charlie Poole
+// Copyright (c) 2008-2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,7 +24,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
@@ -111,12 +111,12 @@ namespace NUnit.Framework
         /// <summary>
         /// Gets the list of arguments to a test case
         /// </summary>
-        public object[] Arguments { get; private set; }
+        public object[] Arguments { get; }
 
         /// <summary>
         /// Gets the properties of the test case
         /// </summary>
-        public IPropertyBag Properties { get; private set; }
+        public IPropertyBag Properties { get; }
 
         #endregion
 
@@ -224,8 +224,8 @@ namespace NUnit.Framework
                 Reason = value;
             }
         }
-        
-#if !PORTABLE
+
+#if PLATFORM_DETECTION
         /// <summary>
         /// Comma-delimited list of platforms to run the test for
         /// </summary>
@@ -255,38 +255,38 @@ namespace NUnit.Framework
 
         #region Helper Methods
 
-        private TestCaseParameters GetParametersForTestCase(IMethodInfo method)
+        private TestCaseParameters GetParametersForTestCase(MethodInfo method)
         {
             TestCaseParameters parms;
 
             try
             {
-#if NETCF
-                var tmethod = method.MakeGenericMethodEx(Arguments);
-                if (tmethod == null)
-                    throw new NotSupportedException("Cannot determine generic types from probing");
-                method = tmethod;
-#endif
-
-                IParameterInfo[] parameters = method.GetParameters();
+                ParameterInfo[] parameters = method.GetParameters();
                 int argsNeeded = parameters.Length;
                 int argsProvided = Arguments.Length;
 
                 parms = new TestCaseParameters(this);
 
+                // Special handling for ExpectedResult (see if it needs to be converted into method return type)
+                object expectedResultInTargetType;
+                if (parms.HasExpectedResult
+                    && PerformSpecialConversion(parms.ExpectedResult, method.ReturnType, out expectedResultInTargetType))
+                {
+                    parms.ExpectedResult = expectedResultInTargetType;
+                }
+
                 // Special handling for params arguments
                 if (argsNeeded > 0 && argsProvided >= argsNeeded - 1)
                 {
-                    IParameterInfo lastParameter = parameters[argsNeeded - 1];
+                    ParameterInfo lastParameter = parameters[argsNeeded - 1];
                     Type lastParameterType = lastParameter.ParameterType;
                     Type elementType = lastParameterType.GetElementType();
 
-                    if (lastParameterType.IsArray && lastParameter.IsDefined<ParamArrayAttribute>(false))
+                    if (lastParameterType.IsArray && lastParameter.HasAttribute<ParamArrayAttribute>(false))
                     {
                         if (argsProvided == argsNeeded)
                         {
-                            Type lastArgumentType = parms.Arguments[argsProvided - 1].GetType();
-                            if (!lastParameterType.GetTypeInfo().IsAssignableFrom(lastArgumentType.GetTypeInfo()))
+                            if (!lastParameterType.IsInstanceOfType(parms.Arguments[argsProvided - 1]))
                             {
                                 Array array = Array.CreateInstance(elementType, 1);
                                 array.SetValue(parms.Arguments[argsProvided - 1], 0);
@@ -311,14 +311,14 @@ namespace NUnit.Framework
                     }
                 }
 
-#if !NETCF
                 //Special handling for optional parameters
                 if (parms.Arguments.Length < argsNeeded)
                 {
                     object[] newArgList = new object[parameters.Length];
                     Array.Copy(parms.Arguments, newArgList, parms.Arguments.Length);
 
-                    for (var i = 0; i < parameters.Length; i++)
+                    //Fill with Type.Missing for remaining required parameters where optional
+                    for (var i = parms.Arguments.Length; i < parameters.Length; i++)
                     {
                         if (parameters[i].IsOptional)
                             newArgList[i] = Type.Missing;
@@ -327,12 +327,14 @@ namespace NUnit.Framework
                             if (i < parms.Arguments.Length)
                                 newArgList[i] = parms.Arguments[i];
                             else
-                                throw new TargetParameterCountException("Incorrect number of parameters specified for TestCase");
+                                throw new TargetParameterCountException(string.Format(
+                                    "Method requires {0} arguments but TestCaseAttribute only supplied {1}",
+                                    argsNeeded, 
+                                    argsProvided));
                         }
                     }
                     parms.Arguments = newArgList;
                 }
-#endif
 
                 //if (method.GetParameters().Length == 1 && method.GetParameters()[0].ParameterType == typeof(object[]))
                 //    parms.Arguments = new object[]{parms.Arguments};
@@ -365,77 +367,94 @@ namespace NUnit.Framework
         /// </summary>
         /// <param name="arglist">The arguments to be converted</param>
         /// <param name="parameters">The ParameterInfo array for the method</param>
-        private static void PerformSpecialConversions(object[] arglist, IParameterInfo[] parameters)
+        private static void PerformSpecialConversions(object[] arglist, ParameterInfo[] parameters)
         {
             for (int i = 0; i < arglist.Length; i++)
             {
                 object arg = arglist[i];
                 Type targetType = parameters[i].ParameterType;
-
-                if (arg == null)
-                    continue;
-
-                if (arg is SpecialValue && (SpecialValue)arg == SpecialValue.Null)
+                object argAsTargetType;
+                if (PerformSpecialConversion(arg, targetType, out argAsTargetType))
                 {
-                    arglist[i] = null;
-                    continue;
-                }
-
-                if (targetType.IsAssignableFrom(arg.GetType()))
-                    continue;
-#if !PORTABLE
-                if (arg is DBNull)
-                {
-                    arglist[i] = null;
-                    continue;
-                }
-#endif
-                bool convert = false;
-
-                if (targetType == typeof(short) || targetType == typeof(byte) || targetType == typeof(sbyte) ||
-                    targetType == typeof(short?) || targetType == typeof(byte?) || targetType == typeof(sbyte?) || targetType == typeof(double?))
-                {
-                    convert = arg is int;
-                }
-                else if (targetType == typeof(decimal) || targetType == typeof(decimal?))
-                {
-                    convert = arg is double || arg is string || arg is int;
-                }
-                else if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
-                {
-                    convert = arg is string;
-                }
-
-                if (convert)
-                {
-                    Type convertTo = targetType.GetTypeInfo().IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>) ? 
-                        targetType.GetGenericArguments()[0] : targetType;
-                    arglist[i] = Convert.ChangeType(arg, convertTo, System.Globalization.CultureInfo.InvariantCulture);
-                }
-                else
-                // Convert.ChangeType doesn't work for TimeSpan from string
-                if ((targetType == typeof(TimeSpan) || targetType == typeof(TimeSpan?)) && arg is string)
-                {
-                    arglist[i] = TimeSpan.Parse((string)arg);
+                    arglist[i] = argAsTargetType;
                 }
             }
+        }
+
+        /// <summary>
+        /// Performs several special conversions allowed by NUnit in order to
+        /// permit arguments with types that cannot be used in the constructor
+        /// of an Attribute such as TestCaseAttribute or to simplify their use.
+        /// </summary>
+        /// <param name="arg">The argument to be converted</param>
+        /// <param name="targetType">The target <see cref="Type"/> in which the <paramref name="arg"/> should be converted</param>
+        /// <param name="argAsTargetType">If conversion was successfully applied, the <paramref name="arg"/> converted into <paramref name="targetType"/></param>
+        /// <returns>
+        /// <c>true</c> if <paramref name="arg"/> was converted and <paramref name="argAsTargetType"/> should be used;
+        /// <c>false</c> is no conversion was applied and <paramref name="argAsTargetType"/> should be ignored
+        /// </returns>
+        private static bool PerformSpecialConversion(object arg, Type targetType, out object argAsTargetType)
+        {
+            argAsTargetType = null;
+            if (arg == null)
+                return false;
+
+            if (targetType.IsInstanceOfType(arg))
+                return false;
+
+            if (arg.GetType().FullName == "System.DBNull")
+            {
+                argAsTargetType = null;
+                return true;
+            }
+
+            bool convert = false;
+
+            if (targetType == typeof(short) || targetType == typeof(byte) || targetType == typeof(sbyte) || targetType == typeof(long?) ||
+                targetType == typeof(short?) || targetType == typeof(byte?) || targetType == typeof(sbyte?) || targetType == typeof(double?))
+            {
+                convert = arg is int;
+            }
+            else if (targetType == typeof(decimal) || targetType == typeof(decimal?))
+            {
+                convert = arg is double || arg is string || arg is int;
+            }
+            else if (targetType == typeof(DateTime) || targetType == typeof(DateTime?))
+            {
+                convert = arg is string;
+            }
+
+            if (convert)
+            {
+                Type convertTo = targetType.GetTypeInfo().IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>) ?
+                    targetType.GetGenericArguments()[0] : targetType;
+                argAsTargetType = Convert.ChangeType(arg, convertTo, System.Globalization.CultureInfo.InvariantCulture);
+                return true;
+            }
+
+            // Convert.ChangeType doesn't work for TimeSpan from string
+            if ((targetType == typeof(TimeSpan) || targetType == typeof(TimeSpan?)) && arg is string)
+            {
+                argAsTargetType = TimeSpan.Parse((string)arg);
+                return true;
+            }
+
+            return false;
         }
         #endregion
 
         #region ITestBuilder Members
 
         /// <summary>
-        /// Construct one or more TestMethods from a given MethodInfo,
-        /// using available parameter data.
+        /// Builds a single test from the specified method and context.
         /// </summary>
-        /// <param name="method">The MethodInfo for which tests are to be constructed.</param>
-        /// <param name="suite">The suite to which the tests will be added.</param>
-        /// <returns>One or more TestMethods</returns>
-        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
+        /// <param name="method">The method to be used as a test.</param>
+        /// <param name="suite">The parent to which the test will be added.</param>
+        public IEnumerable<TestMethod> BuildFrom(FixtureMethod method, Test suite)
         {
-            TestMethod test = new NUnitTestCaseBuilder().BuildTestMethod(method, suite, GetParametersForTestCase(method));
-            
-#if !PORTABLE
+            TestMethod test = new NUnitTestCaseBuilder().BuildTestMethod(method, suite, GetParametersForTestCase(method.Method));
+
+#if PLATFORM_DETECTION
             if (test.RunState != RunState.NotRunnable &&
                 test.RunState != RunState.Ignored)
             {

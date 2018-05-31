@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -51,8 +51,10 @@ namespace NUnit.Framework.Constraints
         [TestCase(4.0d, 4.0f)]
         [TestCase(4.0f, 4)]
         [TestCase(4.0f, 4.0d)]
-        [TestCase(SpecialValue.Null, SpecialValue.Null)]
         [TestCase(null, null)]
+        [TestCase((char)4, (char)4)]
+        [TestCase((char)4, 4)]
+        [TestCase(4, (char)4)]
         public void EqualItems(object x, object y)
         {
             Assert.That(comparer.AreEqual(x, y, ref tolerance));
@@ -67,8 +69,10 @@ namespace NUnit.Framework.Constraints
         [TestCase(4.0d, 2.0f)]
         [TestCase(4.0f, 2)]
         [TestCase(4.0f, 2.0d)]
-        [TestCase(4, SpecialValue.Null)]
         [TestCase(4, null)]
+        [TestCase((char)4, (char)2)]
+        [TestCase((char)4, 2)]
+        [TestCase(4, (char)2)]
         public void UnequalItems(object greater, object lesser)
         {
             Assert.False(comparer.AreEqual(greater, lesser, ref tolerance));
@@ -86,7 +90,6 @@ namespace NUnit.Framework.Constraints
             Assert.That(comparer.AreEqual(x, y, ref tolerance));
         }
 
-#if !PORTABLE
         [Test]
         public void SameDirectoriesAreEqual()
         {
@@ -107,7 +110,6 @@ namespace NUnit.Framework.Constraints
                 Assert.That(comparer.AreEqual(one, two, ref tolerance), Is.False);
             }
         }
-#endif
 
         [Test]
         public void CanCompareArrayContainingSelfToSelf()
@@ -200,6 +202,48 @@ namespace NUnit.Framework.Constraints
             Assert.That(x, Is.EqualTo(y));
             Assert.That(z, Is.Not.EqualTo(x));
             Assert.That(x, Is.Not.EqualTo(z));
+        }
+
+        [Test]
+        public void IEquatableIsIgnoredAndEnumerableEqualsUsedWithAsCollection()
+        {
+            comparer.CompareAsCollection = true;
+
+            var x = new EquatableWithEnumerableObject<int>(new[] { 1, 2, 3, 4, 5 }, 42);
+            var y = new EnumerableObject<int>(new[] { 5, 4, 3, 2, 1 }, 42);
+            var z = new EnumerableObject<int>(new[] { 1, 2, 3, 4, 5 }, 15);
+
+            Assert.That(comparer.AreEqual(x, y, ref tolerance), Is.False);
+            Assert.That(comparer.AreEqual(y, x, ref tolerance), Is.False);
+            Assert.That(comparer.AreEqual(x, z, ref tolerance), Is.True);
+            Assert.That(comparer.AreEqual(z, x, ref tolerance), Is.True);
+
+            Assert.That(y, Is.Not.EqualTo(x).AsCollection);
+            Assert.That(x, Is.Not.EqualTo(y).AsCollection);
+            Assert.That(z, Is.EqualTo(x).AsCollection);
+            Assert.That(x, Is.EqualTo(z).AsCollection);
+        }
+
+        [Test]
+        public void InheritingAndOverridingIEquatable()
+        {
+            var obj1 = new InheritingEquatableObject { SomeProperty = 1, OtherProperty = 2 };
+            var obj2 = new InheritingEquatableObject { SomeProperty = 1, OtherProperty = 2 };
+            var obj3 = new InheritingEquatableObject { SomeProperty = 1, OtherProperty = 3 };
+            var obj4 = new InheritingEquatableObject { SomeProperty = 4, OtherProperty = 2 };
+
+            Assert.That(obj1, Is.EqualTo(obj2));
+            Assert.That(obj1, Is.Not.EqualTo(obj3));
+            Assert.That(obj1, Is.Not.EqualTo(obj4));
+
+            var n = new NUnitEqualityComparer();
+            var tolerance = Tolerance.Exact;
+            Assert.That(n.AreEqual(obj1, obj2, ref tolerance), Is.True);
+            Assert.That(n.AreEqual(obj2, obj1, ref tolerance), Is.True);
+            Assert.That(n.AreEqual(obj1, obj3, ref tolerance), Is.False);
+            Assert.That(n.AreEqual(obj3, obj1, ref tolerance), Is.False);
+            Assert.That(n.AreEqual(obj1, obj4, ref tolerance), Is.False);
+            Assert.That(n.AreEqual(obj4, obj1, ref tolerance), Is.False);
         }
 
         [Test]
@@ -430,6 +474,18 @@ namespace NUnit.Framework.Constraints
         }
     }
 
+    public class InheritingEquatableObject : EquatableObject, IEquatable<InheritingEquatableObject>
+    {
+        public int OtherProperty { get; set; }
+        public bool Equals(InheritingEquatableObject other)
+        {
+            if (other == null)
+                return false;
+
+            return OtherProperty == other.OtherProperty && Equals((EquatableObject) other);
+        }
+    }
+
     public interface IEquatableObject : IEquatable<IEquatableObject>
     {
         int SomeProperty { get; set; }
@@ -469,7 +525,7 @@ namespace NUnit.Framework.Constraints
             SomeProperty = someProperty;
         }
 
-        public int SomeProperty { get; private set; }
+        public int SomeProperty { get; }
 
         /// <summary>Returns an enumerator that iterates through the collection.</summary>
         /// <returns>A <see cref="T:System.Collections.Generic.IEnumerator`1" /> that can be used to iterate through the collection.</returns>
@@ -496,7 +552,7 @@ namespace NUnit.Framework.Constraints
             OtherProperty = otherProperty;
         }
 
-        public int OtherProperty { get; private set; }
+        public int OtherProperty { get; }
 
         /// <summary>Returns an enumerator that iterates through the collection.</summary>
         /// <returns>A <see cref="T:System.Collections.Generic.IEnumerator`1" /> that can be used to iterate through the collection.</returns>

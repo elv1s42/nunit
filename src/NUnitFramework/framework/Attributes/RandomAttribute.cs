@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008-2015 Charlie Poole
+// Copyright (c) 2008-2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,21 +25,28 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 
 namespace NUnit.Framework
 {
     /// <summary>
-    /// RandomAttribute is used to supply a set of random _values
+    /// RandomAttribute is used to supply a set of random values
     /// to a single parameter of a parameterized test.
     /// </summary>
+    [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = false)]
     public class RandomAttribute : DataAttribute, IParameterDataSource
     {
         private RandomDataSource _source;
-        private int _count;
+        private readonly int _count;
+
+        /// <summary>
+        /// If true, no value will be repeated.
+        /// </summary>
+        public bool Distinct { get; set; }
 
         #region Constructors
 
@@ -142,9 +149,11 @@ namespace NUnit.Framework
         #region IParameterDataSource Interface
 
         /// <summary>
-        /// Get the collection of _values to be used as arguments.
+        /// Retrieves a list of arguments which can be passed to the specified parameter.
         /// </summary>
-        public IEnumerable GetData(IParameterInfo parameter)
+        /// <param name="fixtureType">The point of context in the fixture’s inheritance hierarchy.</param>
+        /// <param name="parameter">The parameter of a parameterized test.</param>
+        public IEnumerable GetData(Type fixtureType, ParameterInfo parameter)
         {
             // Since a separate Randomizer is used for each parameter,
             // we can't fill in the data in the constructor of the
@@ -185,19 +194,13 @@ namespace NUnit.Framework
             }
             else if (_source.DataType != parmType && WeConvert(_source.DataType, parmType))
             {
+                _source.Distinct = Distinct;
                 _source = new RandomDataConverter(_source);
             }
 
-            return _source.GetData(parameter);
+            _source.Distinct = Distinct;
 
-            //// Copy the random _values into the data array
-            //// and call the base class which may need to
-            //// convert them to another type.
-            //this.data = new object[values.Count];
-            //for (int i = 0; i < values.Count; i++)
-            //    this.data[i] = values[i];
-
-            //return base.GetData(parameter);
+            return _source.GetData(fixtureType, parameter);
         }
 
         private bool WeConvert(Type sourceType, Type targetType)
@@ -207,7 +210,7 @@ namespace NUnit.Framework
 
             if (targetType == typeof(decimal))
                 return sourceType == typeof(int) || sourceType == typeof(double);
-            
+
             return false;
         }
 
@@ -220,16 +223,19 @@ namespace NUnit.Framework
         abstract class RandomDataSource : IParameterDataSource
         {
             public Type DataType { get; protected set; }
+            public bool Distinct { get; set; }
 
-            public abstract IEnumerable GetData(IParameterInfo parameter);
+            public abstract IEnumerable GetData(Type fixtureType, ParameterInfo parameter);
         }
 
         abstract class RandomDataSource<T> : RandomDataSource
         {
-            private T _min;
-            private T _max;
-            private int _count;
-            private bool _inRange;
+            private readonly T _min;
+            private readonly T _max;
+            private readonly int _count;
+            private readonly bool _inRange;
+
+            private readonly List<T> previousValues = new List<T>();
 
             protected Randomizer _randomizer;
 
@@ -251,20 +257,42 @@ namespace NUnit.Framework
                 DataType = typeof(T);
             }
 
-            public override IEnumerable GetData(IParameterInfo parameter)
+            public override IEnumerable GetData(Type fixtureType, ParameterInfo parameter)
             {
                 //Guard.ArgumentValid(parameter.ParameterType == typeof(T), "Parameter type must be " + typeof(T).Name, "parameter");
 
-                _randomizer = Randomizer.GetRandomizer(parameter.ParameterInfo);
+                _randomizer = Randomizer.GetRandomizer(parameter);
+
+                Guard.OperationValid(!(Distinct && _inRange && !CanBeDistinct(_min, _max, _count)), $"The range of values is [{_min}, {_max}[ and the random value count is {_count} so the values cannot be distinct.");
+                
 
                 for (int i = 0; i < _count; i++)
-                    yield return _inRange
-                        ? GetNext(_min, _max)
-                        : GetNext();
+                {
+                    if (Distinct)
+                    {
+                        T next;
+
+                        do
+                        {
+                            next = _inRange
+                                ? GetNext(_min, _max)
+                                : GetNext();
+                        } while (previousValues.Contains(next));
+
+                        previousValues.Add(next);
+                        
+                        yield return next;
+                    }
+                    else
+                        yield return _inRange
+                            ? GetNext(_min, _max)
+                            : GetNext();
+                }
             }
 
             protected abstract T GetNext();
             protected abstract T GetNext(T min, T max);
+            protected abstract bool CanBeDistinct(T min, T max, int count);
         }
 
         #endregion
@@ -273,18 +301,18 @@ namespace NUnit.Framework
 
         class RandomDataConverter : RandomDataSource
         {
-            IParameterDataSource _source;
+            readonly IParameterDataSource _source;
 
             public RandomDataConverter(IParameterDataSource source)
             {
                 _source = source;
             }
 
-            public override IEnumerable GetData(IParameterInfo parameter)
+            public override IEnumerable GetData(Type fixtureType, ParameterInfo parameter)
             {
                 Type parmType = parameter.ParameterType;
 
-                foreach (object obj in _source.GetData(parameter))
+                foreach (object obj in _source.GetData(fixtureType, parameter))
                 {
                     if (obj is int)
                     {
@@ -329,6 +357,11 @@ namespace NUnit.Framework
             {
                 return _randomizer.Next(min, max);
             }
+
+            protected override bool CanBeDistinct(int min, int max, int count)
+            {
+                return count <= max - min;
+            }
         }
 
         #endregion
@@ -349,6 +382,11 @@ namespace NUnit.Framework
             protected override uint GetNext(uint min, uint max)
             {
                 return _randomizer.NextUInt(min, max);
+            }
+
+            protected override bool CanBeDistinct(uint min, uint max, int count)
+            {
+                return count <= max - min;
             }
         }
 
@@ -371,6 +409,11 @@ namespace NUnit.Framework
             {
                 return _randomizer.NextLong(min, max);
             }
+
+            protected override bool CanBeDistinct(long min, long max, int count)
+            {
+                return count <= max - min;
+            }
         }
 
         #endregion
@@ -391,6 +434,11 @@ namespace NUnit.Framework
             protected override ulong GetNext(ulong min, ulong max)
             {
                 return _randomizer.NextULong(min, max);
+            }
+
+            protected override bool CanBeDistinct(ulong min, ulong max, int count)
+            {
+                return (uint)count <= max - min;
             }
         }
 
@@ -413,6 +461,11 @@ namespace NUnit.Framework
             {
                 return _randomizer.NextShort(min, max);
             }
+
+            protected override bool CanBeDistinct(short min, short max, int count)
+            {
+                return count <= max - min;
+            }
         }
 
         #endregion
@@ -433,6 +486,11 @@ namespace NUnit.Framework
             protected override ushort GetNext(ushort min, ushort max)
             {
                 return _randomizer.NextUShort(min, max);
+            }
+
+            protected override bool CanBeDistinct(ushort min, ushort max, int count)
+            {
+                return count <= max - min;
             }
         }
 
@@ -455,6 +513,11 @@ namespace NUnit.Framework
             {
                 return _randomizer.NextDouble(min, max);
             }
+
+            protected override bool CanBeDistinct(double min, double max, int count)
+            {
+                return true;
+            }
         }
 
         #endregion
@@ -475,6 +538,11 @@ namespace NUnit.Framework
             protected override float GetNext(float min, float max)
             {
                 return _randomizer.NextFloat(min, max);
+            }
+
+            protected override bool CanBeDistinct(float min, float max, int count)
+            {
+                return true;
             }
         }
 
@@ -497,6 +565,11 @@ namespace NUnit.Framework
             {
                 return _randomizer.NextByte(min, max);
             }
+
+            protected override bool CanBeDistinct(byte min, byte max, int count)
+            {
+                return count <= max - min;
+            }
         }
 
         #endregion
@@ -518,6 +591,11 @@ namespace NUnit.Framework
             {
                 return _randomizer.NextSByte(min, max);
             }
+
+            protected override bool CanBeDistinct(sbyte min, sbyte max, int count)
+            {
+                return count <= max - min;
+            }
         }
 
         #endregion
@@ -526,7 +604,9 @@ namespace NUnit.Framework
 
         class EnumDataSource : RandomDataSource
         {
-            private int _count;
+            private readonly int _count;
+
+            private readonly List<object> previousValues = new List<object>();
 
             public EnumDataSource(int count)
             {
@@ -534,15 +614,35 @@ namespace NUnit.Framework
                 DataType = typeof(Enum);
             }
 
-            public override IEnumerable GetData(IParameterInfo parameter)
+            public override IEnumerable GetData(Type fixtureType, ParameterInfo parameter)
             {
-                Guard.ArgumentValid(parameter.ParameterType.GetTypeInfo().IsEnum, "EnumDataSource requires an enum parameter", "parameter");
+                Guard.ArgumentValid(parameter.ParameterType.GetTypeInfo().IsEnum, "EnumDataSource requires an enum parameter", nameof(parameter));
 
-                Randomizer randomizer = Randomizer.GetRandomizer(parameter.ParameterInfo);
+                Randomizer randomizer = Randomizer.GetRandomizer(parameter);
                 DataType = parameter.ParameterType;
 
-                for (int i = 0; i < _count; i++ )
-                    yield return randomizer.NextEnum(parameter.ParameterType);
+                int valueCount = Enum.GetValues(DataType).Cast<int>().Distinct().Count();
+
+                Guard.OperationValid(!(Distinct && _count > valueCount), $"The enum \"{DataType.Name}\" has {valueCount} values and the random value count is {_count} so the values cannot be distinct.");
+
+                for (int i = 0; i < _count; i++)
+                {
+                    if (Distinct)
+                    {
+                        object next;
+
+                        do
+                        {
+                            next = randomizer.NextEnum(parameter.ParameterType);
+                        } while (previousValues.Contains(next));
+
+                        previousValues.Add(next);
+
+                        yield return next;
+                    }
+                    else
+                        yield return randomizer.NextEnum(parameter.ParameterType);
+                }
             }
         }
 
@@ -567,6 +667,11 @@ namespace NUnit.Framework
             protected override decimal GetNext(decimal min, decimal max)
             {
                 return _randomizer.NextDecimal(min, max);
+            }
+
+            protected override bool CanBeDistinct(decimal min, decimal max, int count)
+            {
+                return true;
             }
         }
 

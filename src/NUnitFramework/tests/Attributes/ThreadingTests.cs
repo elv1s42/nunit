@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !PORTABLE
+#if !NETCOREAPP1_1
 using System.Threading;
 
 namespace NUnit.Framework.Attributes
@@ -30,17 +30,15 @@ namespace NUnit.Framework.Attributes
     {
         protected Thread ParentThread { get; private set; }
         protected Thread SetupThread { get; private set; }
-#if !NETCF && !SILVERLIGHT
         protected ApartmentState ParentThreadApartment { get; private set; }
-#endif
 
         [OneTimeSetUp]
         public void GetParentThreadInfo()
         {
             ParentThread = Thread.CurrentThread;
-#if !NETCF && !SILVERLIGHT
             ParentThreadApartment = GetApartmentState(ParentThread);
-#endif
+
+            TestContext.AddFormatter<Thread>((t) => "Thread #" + ((Thread)t).ManagedThreadId);
         }
 
         [SetUp]
@@ -63,12 +61,10 @@ namespace NUnit.Framework.Attributes
             Assert.That(Thread.CurrentThread, Is.EqualTo(SetupThread));
         }
 
-#if !NETCF && !SILVERLIGHT
         protected static ApartmentState GetApartmentState(Thread thread)
         {
             return thread.GetApartmentState();
         }
-#endif
     }
 }
 #endif

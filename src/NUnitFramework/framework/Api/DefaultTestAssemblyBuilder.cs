@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2012-2014 Charlie Poole
+// Copyright (c) 2012-2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -24,9 +24,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
-using NUnit.Common;
-using NUnit.Framework.Compatibility;
+using System.Security;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
@@ -39,14 +40,14 @@ namespace NUnit.Framework.Api
     /// </summary>
     public class DefaultTestAssemblyBuilder : ITestAssemblyBuilder
     {
-        static Logger log = InternalTrace.GetLogger(typeof(DefaultTestAssemblyBuilder));
+        static readonly Logger log = InternalTrace.GetLogger(typeof(DefaultTestAssemblyBuilder));
 
         #region Instance Fields
 
         /// <summary>
         /// The default suite builder used by the test assembly builder.
         /// </summary>
-        ISuiteBuilder _defaultSuiteBuilder;
+        readonly ISuiteBuilder _defaultSuiteBuilder;
 
         #endregion
 
@@ -72,22 +73,15 @@ namespace NUnit.Framework.Api
         /// <returns>
         /// A TestSuite containing the tests found in the assembly
         /// </returns>
-        public ITest Build(Assembly assembly, IDictionary options)
+        public ITest Build(Assembly assembly, IDictionary<string, object> options)
         {
-#if PORTABLE
+#if NETSTANDARD1_6
             log.Debug("Loading {0}", assembly.FullName);
 #else
             log.Debug("Loading {0} in AppDomain {1}", assembly.FullName, AppDomain.CurrentDomain.FriendlyName);
 #endif
 
-#if SILVERLIGHT
-            string assemblyPath = AssemblyHelper.GetAssemblyName(assembly).Name;
-#elif PORTABLE
-            string assemblyPath = AssemblyHelper.GetAssemblyName(assembly).FullName;
-#else
             string assemblyPath = AssemblyHelper.GetAssemblyPath(assembly);
-#endif
-
             return Build(assembly, assemblyPath, options);
         }
 
@@ -99,9 +93,9 @@ namespace NUnit.Framework.Api
         /// <returns>
         /// A TestSuite containing the tests found in the assembly
         /// </returns>
-        public ITest Build(string assemblyName, IDictionary options)
+        public ITest Build(string assemblyName, IDictionary<string, object> options)
         {
-#if PORTABLE
+#if NETSTANDARD1_6
             log.Debug("Loading {0}", assemblyName);
 #else
             log.Debug("Loading {0} in AppDomain {1}", assemblyName, AppDomain.CurrentDomain.FriendlyName);
@@ -117,20 +111,62 @@ namespace NUnit.Framework.Api
             catch (Exception ex)
             {
                 testAssembly = new TestAssembly(assemblyName);
-                testAssembly.RunState = RunState.NotRunnable;
-                testAssembly.Properties.Set(PropertyNames.SkipReason, ex.Message);
+                testAssembly.MakeInvalid(ExceptionHelper.BuildMessage(ex, true));
             }
 
             return testAssembly;
         }
 
-        private TestSuite Build(Assembly assembly, string assemblyPath, IDictionary options)
+        private TestSuite Build(Assembly assembly, string assemblyPath, IDictionary<string, object> options)
         {
             TestSuite testAssembly = null;
 
             try
             {
-                IList fixtureNames = options[PackageSettings.LOAD] as IList;
+                if (options.ContainsKey(FrameworkPackageSettings.DefaultTestNamePattern))
+                    TestNameGenerator.DefaultTestNamePattern = options[FrameworkPackageSettings.DefaultTestNamePattern] as string;
+
+                if (options.ContainsKey(FrameworkPackageSettings.WorkDirectory))
+                    TestContext.DefaultWorkDirectory = options[FrameworkPackageSettings.WorkDirectory] as string;
+                else
+                    TestContext.DefaultWorkDirectory = Directory.GetCurrentDirectory();
+
+                if (options.ContainsKey(FrameworkPackageSettings.TestParametersDictionary))
+                {
+                    var testParametersDictionary = options[FrameworkPackageSettings.TestParametersDictionary] as IDictionary<string, string>;
+                    if (testParametersDictionary != null)
+                    {
+                        foreach (var parameter in testParametersDictionary)
+                            TestContext.Parameters.Add(parameter.Key, parameter.Value);
+                    }
+                }
+                else
+                {
+                    // This cannot be changed without breaking backwards compatibility with old runners.
+                    // Deserializes the way old runners understand.
+
+                    if (options.ContainsKey(FrameworkPackageSettings.TestParameters))
+                    {
+                        string parameters = options[FrameworkPackageSettings.TestParameters] as string;
+                        if (!string.IsNullOrEmpty(parameters))
+                            foreach (string param in parameters.Split(new[] { ';' }))
+                            {
+                                int eq = param.IndexOf("=");
+
+                                if (eq > 0 && eq < param.Length - 1)
+                                {
+                                    var name = param.Substring(0, eq);
+                                    var val = param.Substring(eq + 1);
+
+                                    TestContext.Parameters.Add(name, val);
+                                }
+                            }
+                    }
+                }
+
+                IList fixtureNames = null;
+                if (options.ContainsKey(FrameworkPackageSettings.LOAD))
+                    fixtureNames = options[FrameworkPackageSettings.LOAD] as IList;
                 var fixtures = GetFixtures(assembly, fixtureNames);
 
                 testAssembly = BuildTestAssembly(assembly, assemblyPath, fixtures);
@@ -138,8 +174,7 @@ namespace NUnit.Framework.Api
             catch (Exception ex)
             {
                 testAssembly = new TestAssembly(assemblyPath);
-                testAssembly.RunState = RunState.NotRunnable;
-                testAssembly.Properties.Set(PropertyNames.SkipReason, ex.Message);
+                testAssembly.MakeInvalid(ExceptionHelper.BuildMessage(ex, true));
             }
 
             return testAssembly;
@@ -164,13 +199,11 @@ namespace NUnit.Framework.Api
             int testcases = 0;
             foreach (Type testType in testTypes)
             {
-                var typeInfo = new TypeWrapper(testType);
-
                 try
                 {
-                    if (_defaultSuiteBuilder.CanBuildFrom(typeInfo))
+                    if (_defaultSuiteBuilder.CanBuildFrom(testType))
                     {
-                        Test fixture = _defaultSuiteBuilder.BuildFrom(typeInfo);
+                        Test fixture = _defaultSuiteBuilder.BuildFrom(testType);
                         fixtures.Add(fixture);
                         testcases += fixture.TestCaseCount;
                     }
@@ -217,14 +250,18 @@ namespace NUnit.Framework.Api
             return result;
         }
 
+        // This method invokes members on the 'System.Diagnostics.Process' class and must satisfy the link demand of
+        // the full-trust 'PermissionSetAttribute' on this class. Callers of this method have no influence on how the
+        // Process class is used, so we can safely satisfy the link demand with a 'SecuritySafeCriticalAttribute' rather
+        // than a 'SecurityCriticalAttribute' and allow use by security transparent callers.
+        [SecuritySafeCritical]
         private TestSuite BuildTestAssembly(Assembly assembly, string assemblyName, IList<Test> fixtures)
         {
             TestSuite testAssembly = new TestAssembly(assembly, assemblyName);
 
             if (fixtures.Count == 0)
             {
-                testAssembly.RunState = RunState.NotRunnable;
-                testAssembly.Properties.Set(PropertyNames.SkipReason, "Has no TestFixtures");
+                testAssembly.MakeInvalid("Has no TestFixtures");
             }
             else
             {
@@ -236,10 +273,8 @@ namespace NUnit.Framework.Api
 
             testAssembly.ApplyAttributesToTest(assembly);
 
-#if !PORTABLE
-#if !SILVERLIGHT
+#if !NETSTANDARD1_6
             testAssembly.Properties.Set(PropertyNames.ProcessID, System.Diagnostics.Process.GetCurrentProcess().Id);
-#endif
             testAssembly.Properties.Set(PropertyNames.AppDomain, AppDomain.CurrentDomain.FriendlyName);
 #endif
 

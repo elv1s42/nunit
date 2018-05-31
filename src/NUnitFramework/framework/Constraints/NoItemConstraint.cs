@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -39,9 +40,16 @@ namespace NUnit.Framework.Constraints
         public NoItemConstraint(IConstraint itemConstraint)
             : base(itemConstraint)
         {
-            this.DisplayName = "None";
-            this.descriptionPrefix = "no item";
+            DescriptionPrefix = "no item";
         }
+
+        /// <summary> 
+        /// The display name of this Constraint for use by ToString().
+        /// The default value is the name of the constraint with
+        /// trailing "Constraint" removed. Derived classes may set
+        /// this to another name in their constructors.
+        /// </summary>
+        public override string DisplayName { get { return "None"; } }
 
         /// <summary>
         /// Apply the item constraint to each item in the collection,
@@ -51,11 +59,10 @@ namespace NUnit.Framework.Constraints
         /// <returns></returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            if (!(actual is IEnumerable))
-                throw new ArgumentException("The actual value must be an IEnumerable", "actual");
+            var enumerable = ConstraintUtils.RequireActual<IEnumerable>(actual, nameof(actual));
 
-            foreach (object item in (IEnumerable)actual)
-                if (baseConstraint.ApplyTo(item).IsSuccess)
+            foreach (object item in enumerable)
+                if (BaseConstraint.ApplyTo(item).IsSuccess)
                     return new ConstraintResult(this, actual, ConstraintStatus.Failure);
 
             return new ConstraintResult(this, actual, ConstraintStatus.Success);

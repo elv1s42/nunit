@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -82,8 +82,8 @@ namespace NUnit.TestData.TestCaseAttributeFixture
         public void MethodWithExplicitTestCases(int num)
         {
         }
-        
-#if !PORTABLE
+
+#if PLATFORM_DETECTION
         [TestCase(1, IncludePlatform = "Win")]
         [TestCase(2, IncludePlatform = "Linux")]
         [TestCase(3, IncludePlatform = "MacOSX")]
@@ -96,9 +96,17 @@ namespace NUnit.TestData.TestCaseAttributeFixture
         [TestCase(2, ExcludePlatform = "Linux")]
         [TestCase(3, ExcludePlatform = "MacOSX")]
         [TestCase(4, ExcludePlatform = "XBox")]
-        public void MethodWitExcludePlatform(int num)
+        public void MethodWithExcludePlatform(int num)
         {
         }
 #endif
+
+        [TestCase((object)new object[] { })]
+        [TestCase((object)new object[] { 1, "text", null })]
+        [TestCase((object)new object[] { 1, new int[] { 2, 3 }, 4 })]
+        [TestCase((object)new object[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 })]
+        public void MethodWithArrayArguments(object o)
+        {
+        }
     }
 }

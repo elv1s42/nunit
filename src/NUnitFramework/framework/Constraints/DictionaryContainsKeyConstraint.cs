@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -30,7 +31,7 @@ namespace NUnit.Framework.Constraints
     /// DictionaryContainsKeyConstraint is used to test whether a dictionary
     /// contains an expected object as a key.
     /// </summary>
-    public class DictionaryContainsKeyConstraint : CollectionContainsConstraint
+    public class DictionaryContainsKeyConstraint : CollectionItemsEqualConstraint
     {
         /// <summary>
         /// Construct a DictionaryContainsKeyConstraint
@@ -39,8 +40,16 @@ namespace NUnit.Framework.Constraints
         public DictionaryContainsKeyConstraint(object expected)
             : base(expected)
         {
-            DisplayName = "ContainsKey";
+            Expected = expected;
         }
+
+        /// <summary> 
+        /// The display name of this Constraint for use by ToString().
+        /// The default value is the name of the constraint with
+        /// trailing "Constraint" removed. Derived classes may set
+        /// this to another name in their constructors.
+        /// </summary>
+        public override string DisplayName { get { return "ContainsKey"; } }
 
         /// <summary>
         /// The Description of what this constraint tests, for
@@ -52,16 +61,36 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
+        /// Gets the expected object
+        /// </summary>
+        protected object Expected { get; }
+
+        /// <summary>
         /// Test whether the expected key is contained in the dictionary
         /// </summary>
         protected override bool Matches(IEnumerable actual)
         {
-            IDictionary dictionary = actual as IDictionary;
+            var dictionary = ConstraintUtils.RequireActual<IDictionary>(actual, nameof(actual));
 
-            if (dictionary == null)
-                throw new ArgumentException("The actual value must be an IDictionary", "actual");
+            foreach (object obj in dictionary.Keys)
+                if (ItemsEqual(obj, Expected))
+                    return true;
 
-            return base.Matches(dictionary.Keys);
+            return false;
+        }
+
+        /// <summary>
+        /// Flag the constraint to use the supplied predicate function
+        /// </summary>
+        /// <param name="comparison">The comparison function to use.</param>
+        /// <returns>Self.</returns>
+        public DictionaryContainsKeyConstraint Using<TCollectionType, TMemberType>(Func<TCollectionType, TMemberType, bool> comparison)
+        {
+            // reverse the order of the arguments to match expectations of PredicateEqualityComparer
+            Func<TMemberType, TCollectionType, bool> invertedComparison = (actual, expected) => comparison.Invoke(expected, actual);
+
+            base.Using(EqualityAdapter.For(invertedComparison));
+            return this;
         }
     }
 }

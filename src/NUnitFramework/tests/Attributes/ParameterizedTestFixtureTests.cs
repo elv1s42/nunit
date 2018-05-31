@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
@@ -30,14 +31,46 @@ using NUnit.TestUtilities;
 
 namespace NUnit.Framework.Attributes
 {
+    [TestFixture(45, 45, 90)]
+    [TestFixture(null, null, null)]
+    public class NullableParameterizedTestFixture
+    {
+        int? _one;
+        int? _two;
+        int? _expected;
+
+        public NullableParameterizedTestFixture(int? one, int? two, int? expected)
+        {
+            _one = one;
+            _two = two;
+            _expected = expected;
+        }
+
+        [Test]
+        public void TestAddition()
+        {
+            if(_one.HasValue && _two.HasValue && _expected.HasValue)
+            {
+                Assert.That(_one.Value + _two.Value, Is.EqualTo(_expected.Value));
+            }
+            else
+            {
+                Assert.That(_one, Is.Null);
+                Assert.That(_two, Is.Null);
+            }
+        }
+    }
+
     [TestFixture("hello", "hello", "goodbye")]
     [TestFixture("zip", "zip")]
     [TestFixture(42, 42, 99)]
+    [TestFixture(null, null, "null test")]
+    [TestFixture((string)null, (string)null, "typed null test")]
     public class ParameterizedTestFixture
     {
-        private string eq1;
-        private string eq2;
-        private string neq;
+        private readonly string eq1;
+        private readonly string eq2;
+        private readonly string neq;
         
         public ParameterizedTestFixture(string eq1, string eq2, string neq)
         {
@@ -72,49 +105,6 @@ namespace NUnit.Framework.Attributes
                 Assert.AreNotEqual(eq1.GetHashCode(), neq.GetHashCode());
         }
     }
-
-#if DYNAMIC_DATA
-    [TestFixture(42)]
-    public class ParameterizedTestFixtureWithDataSources
-    {
-        private int answer;
-
-        object[] myData = { new int[] { 6, 7 }, new int[] { 3, 14 } };
-
-        public ParameterizedTestFixtureWithDataSources(int val)
-        {
-            this.answer = val;
-        }
-
-        [Test, TestCaseSource("myData")]
-        public void CanAccessTestCaseSource(int x, int y)
-        {
-            Assert.That(x * y, Is.EqualTo(answer));
-        }
-
-        IEnumerable GenerateData()
-        {
-            for(int i = 1; i <= answer; i++)
-                if ( answer%i == 0 )
-                    yield return new int[] { i, answer/i  };
-        }
-
-        [Test, TestCaseSource("GenerateData")]
-        public void CanGenerateDataFromParameter(int x, int y)
-        {
-            Assert.That(x * y, Is.EqualTo(answer));
-        }
-
-        int[] intvals = new int[] { 1, 2, 3 };
-
-        [Test]
-        public void CanAccessValueSource(
-            [ValueSource("intvals")] int x)
-        {
-            Assert.That(answer % x == 0);
-        }
-    }
-#endif
 
     public class ParameterizedTestFixtureNamingTests
     {

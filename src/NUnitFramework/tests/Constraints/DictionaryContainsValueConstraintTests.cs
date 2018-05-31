@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -27,7 +27,7 @@ using System.Collections.Generic;
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Internal;
 
-namespace NUnit.Framework.Tests.Constraints
+namespace NUnit.Framework.Constraints
 {
     [TestFixture]
     public class DictionaryContainsValueConstraintTests
@@ -49,7 +49,19 @@ namespace NUnit.Framework.Tests.Constraints
 
             Assert.That(act, Throws.Exception.TypeOf<AssertionException>());
         }
+        [Test]
+        public void SucceedsWhenValueIsPresentUsingContainKey()
+        {
+            var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hola", "Mundo" } };
+            Assert.That(dictionary, Does.ContainValue("Mundo"));
+        }
 
+        [Test]
+        public void SucceedsWhenValueIsNotPresentUsingContainKey()
+        {
+            var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hola", "Mundo" } };
+            Assert.That(dictionary, Does.Not.ContainValue("NotValue"));
+        }
         [Test]
         public void FailsWhenNotUsedAgainstADictionary()
         {
@@ -61,7 +73,7 @@ namespace NUnit.Framework.Tests.Constraints
             Assert.That(act, Throws.ArgumentException.With.Message.Contains("IDictionary"));
         }
 
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
         [Test]
         public void WorksWithNonGenericDictionary()
         {

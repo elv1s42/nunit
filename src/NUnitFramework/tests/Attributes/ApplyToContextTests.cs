@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -38,14 +38,6 @@ namespace NUnit.Framework.Attributes
         }
 
         [Test]
-        public void ParallelizableAttribute()
-        {
-            var attr = new ParallelizableAttribute(ParallelScope.Fixtures);
-            attr.ApplyToContext(_context);
-            Assert.That(_context.ParallelScope, Is.EqualTo(ParallelScope.Fixtures));
-        }
-
-        [Test]
         public void SingleThreadedAttribute()
         {
             var attr = new SingleThreadedAttribute();
@@ -53,7 +45,7 @@ namespace NUnit.Framework.Attributes
             Assert.True(_context.IsSingleThreaded);
         }
 
-#if !NETCF && !PORTABLE
+#if !NETCOREAPP1_1
         [Test]
         public void SetCultureAttribute()
         {
@@ -69,7 +61,9 @@ namespace NUnit.Framework.Attributes
             attr.ApplyToContext(_context);
             Assert.That(_context.CurrentUICulture, Is.EqualTo(new CultureInfo("fr-FR")));
         }
-        
+#endif
+
+#if THREAD_ABORT
         [Test]
         public void TimeoutAttribute()
         {

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -46,10 +46,10 @@ namespace NUnit.Framework.Constraints
         protected BinaryConstraint(IConstraint left, IConstraint right)
             : base(left, right)
         {
-            Guard.ArgumentNotNull(left, "left");
+            Guard.ArgumentNotNull(left, nameof(left));
             this.Left = left;
 
-            Guard.ArgumentNotNull(right, "right");
+            Guard.ArgumentNotNull(right, nameof(right));
             this.Right = right;
         }
     }

@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,8 +24,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 using System.Reflection;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -72,7 +73,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         class ComparerAdapter : EqualityAdapter
         {
-            private IComparer comparer;
+            private readonly IComparer comparer;
 
             public ComparerAdapter(IComparer comparer)
             {
@@ -99,7 +100,7 @@ namespace NUnit.Framework.Constraints
 
         class EqualityComparerAdapter : EqualityAdapter
         {
-            private IEqualityComparer comparer;
+            private readonly IEqualityComparer comparer;
 
             public EqualityComparerAdapter(IEqualityComparer comparer)
             {
@@ -124,7 +125,7 @@ namespace NUnit.Framework.Constraints
             return new PredicateEqualityAdapter<TExpected, TActual>(comparison);
         }
 
-        internal class PredicateEqualityAdapter<TActual, TExpected> : EqualityAdapter
+        internal sealed class PredicateEqualityAdapter<TActual, TExpected> : EqualityAdapter
         {
             private readonly Func<TActual, TExpected, bool> _comparison;
 
@@ -163,17 +164,16 @@ namespace NUnit.Framework.Constraints
             /// </summary>
             public override bool CanCompare(object x, object y)
             {
-                return typeof(T).GetTypeInfo().IsAssignableFrom(x.GetType().GetTypeInfo())
-                    && typeof(T).GetTypeInfo().IsAssignableFrom(y.GetType().GetTypeInfo());
+                return TypeHelper.CanCast<T>(x) && TypeHelper.CanCast<T>(y);
             }
 
-            protected void ThrowIfNotCompatible(object x, object y)
+            protected void CastOrThrow(object x, object y, out T xValue, out T yValue)
             {
-                if (!typeof(T).GetTypeInfo().IsAssignableFrom(x.GetType().GetTypeInfo()))
-                    throw new ArgumentException("Cannot compare " + x.ToString());
+                if (!TypeHelper.TryCast(x, out xValue))
+                    throw new ArgumentException($"Cannot compare {x?.ToString() ?? "null"}");
 
-                if (!typeof(T).GetTypeInfo().IsAssignableFrom(y.GetType().GetTypeInfo()))
-                    throw new ArgumentException("Cannot compare " + y.ToString());
+                if (!TypeHelper.TryCast(y, out yValue))
+                    throw new ArgumentException($"Cannot compare {y?.ToString() ?? "null"}");
             }
         }
 
@@ -191,7 +191,7 @@ namespace NUnit.Framework.Constraints
 
         class EqualityComparerAdapter<T> : GenericEqualityAdapter<T>
         {
-            private IEqualityComparer<T> comparer;
+            private readonly IEqualityComparer<T> comparer;
 
             public EqualityComparerAdapter(IEqualityComparer<T> comparer)
             {
@@ -200,8 +200,9 @@ namespace NUnit.Framework.Constraints
 
             public override bool AreEqual(object x, object y)
             {
-                ThrowIfNotCompatible(x, y);
-                return comparer.Equals((T)x, (T)y);
+                T xValue, yValue;
+                CastOrThrow(x, y, out xValue, out yValue);
+                return comparer.Equals(xValue, yValue);
             }
         }
 
@@ -222,7 +223,7 @@ namespace NUnit.Framework.Constraints
         /// </summary>
         class ComparerAdapter<T> : GenericEqualityAdapter<T>
         {
-            private IComparer<T> comparer;
+            private readonly IComparer<T> comparer;
 
             public ComparerAdapter(IComparer<T> comparer)
             {
@@ -231,8 +232,9 @@ namespace NUnit.Framework.Constraints
 
             public override bool AreEqual(object x, object y)
             {
-                ThrowIfNotCompatible(x, y);
-                return comparer.Compare((T)x, (T)y) == 0;
+                T xValue, yValue;
+                CastOrThrow(x, y, out xValue, out yValue);
+                return comparer.Compare(xValue, yValue) == 0;
             }
         }
 
@@ -250,7 +252,7 @@ namespace NUnit.Framework.Constraints
 
         class ComparisonAdapter<T> : GenericEqualityAdapter<T>
         {
-            private Comparison<T> comparer;
+            private readonly Comparison<T> comparer;
 
             public ComparisonAdapter(Comparison<T> comparer)
             {
@@ -259,8 +261,9 @@ namespace NUnit.Framework.Constraints
 
             public override bool AreEqual(object x, object y)
             {
-                ThrowIfNotCompatible(x, y);
-                return comparer.Invoke((T)x, (T)y) == 0;
+                T xValue, yValue;
+                CastOrThrow(x, y, out xValue, out yValue);
+                return comparer.Invoke(xValue, yValue) == 0;
             }
         }
 

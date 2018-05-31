@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 using System;
 using NUnit.Framework;
+using NUnit.Framework.Internal;
 
 namespace NUnit.TestData.RepeatingTests
 {
@@ -42,7 +43,7 @@ namespace NUnit.TestData.RepeatingTests
         public void FailsEveryTime()
         {
             count++;
-            Assert.IsFalse (true);
+            Assert.IsFalse(true);
         }
     }
 
@@ -162,6 +163,66 @@ namespace NUnit.TestData.RepeatingTests
         {
             count++;
             Assert.IsTrue(true);
+        }
+    }
+
+    public class RetryTestCaseFixture : RepeatingTestsFixtureBase
+    {
+        [Retry(3)]
+        [TestCase(0)]
+        public void FailsEveryTime(int unused)
+        {
+            count++;
+            Assert.IsTrue(false);
+        }
+    }
+
+    public sealed class RetryWithoutSetUpOrTearDownFixture
+    {
+        public int Count { get; private set; }
+
+        [Test, Retry(3)]
+        public void SucceedsOnThirdTry()
+        {
+            Count++;
+
+            if (Count < 3)
+                Assert.Fail();
+        }
+
+        [Test, Retry(3)]
+        public void FailsEveryTime()
+        {
+            Count++;
+            Assert.Fail();
+        }
+
+        [Test, Retry(3)]
+        public void ErrorsOnFirstTry()
+        {
+            Count++;
+            throw new Exception("Deliberate exception");
+        }
+    }
+
+    public class RetryTestVerifyAttempt : RepeatingTestsFixtureBase
+    {
+        [Test, Retry(3)]
+        public void NeverPasses()
+        {
+            count = TestContext.CurrentContext.CurrentRepeatCount;
+            Assert.Fail("forcing a failure so we retry maximum times");
+        }
+
+        [Test, Retry(3)]
+        public void PassesOnLastRetry()
+        {
+            Assert.That(count, Is.EqualTo(TestContext.CurrentContext.CurrentRepeatCount), "expected CurrentRepeatCount to be incremented only after first attempt");
+            if (count < 2) // second Repeat is 3rd Retry (i.e. end of attempts)
+            {
+                count++;
+                Assert.Fail("forced failure so we will use maximum number of Retries for PassesOnLastRetry");
+            }
         }
     }
 }

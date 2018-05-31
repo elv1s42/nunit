@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,7 +23,7 @@
 
 using System;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 
 namespace NUnit.Framework.Constraints
 {
@@ -46,7 +46,7 @@ namespace NUnit.Framework.Constraints
         /// <returns>True if the constraint succeeds, otherwise false.</returns>
         protected override bool Matches(object actual)
         {
-            return expectedType != null && actual != null && expectedType.GetTypeInfo().IsAssignableFrom(actual.GetType().GetTypeInfo());
+            return expectedType != null && actual != null && expectedType.IsInstanceOfType(actual);
         }
     }
 }

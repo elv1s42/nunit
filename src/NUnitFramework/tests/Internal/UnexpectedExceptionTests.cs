@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -34,11 +34,11 @@ namespace NUnit.Framework.Internal
         [Test]
         public void FailRecordsInnerException()
         {
-            string expectedMessage = 
+            string expectedMessage =
                 "System.Exception : Outer Exception" + Environment.NewLine + "  ----> System.Exception : Inner Exception";
 
             ITestResult result = TestBuilder.RunTestCase(
-                typeof(UnexpectedExceptionFixture), 
+                typeof(UnexpectedExceptionFixture),
                 "ThrowsWithInnerException");
 
             Assert.AreEqual(ResultState.Error, result.ResultState);
@@ -61,12 +61,16 @@ namespace NUnit.Framework.Internal
             Assert.AreEqual(expectedMessage, result.Message);
         }
 
-#if NET_4_0 || NET_4_5 || SILVERLIGHT || PORTABLE
+#if ASYNC
         [Test]
         public void FailRecordsInnerExceptionsAsPartOfAggregateException()
         {
             string expectedMessage =
+#if NETCOREAPP1_1 || NETCOREAPP2_0
+                "System.AggregateException : Outer Aggregate Exception (Inner Exception 1 of 2) (Inner Exception 2 of 2)" + Environment.NewLine +
+#else
                 "System.AggregateException : Outer Aggregate Exception" + Environment.NewLine +
+#endif
                 "  ----> System.Exception : Inner Exception 1 of 2" + Environment.NewLine +
                 "  ----> System.Exception : Inner Exception 2 of 2";
 
@@ -82,7 +86,11 @@ namespace NUnit.Framework.Internal
         public void FailRecordsNestedInnerExceptionAsPartOfAggregateException()
         {
             string expectedMessage =
+#if NETCOREAPP1_1 || NETCOREAPP2_0
+                "System.AggregateException : Outer Aggregate Exception (Inner Exception)" + Environment.NewLine +
+#else
                 "System.AggregateException : Outer Aggregate Exception" + Environment.NewLine +
+#endif
                 "  ----> System.Exception : Inner Exception" + Environment.NewLine +
                 "  ----> System.Exception : Inner Inner Exception";
 
@@ -99,7 +107,7 @@ namespace NUnit.Framework.Internal
         public void BadStackTraceIsHandled()
         {
             ITestResult result = TestBuilder.RunTestCase(
-                typeof(UnexpectedExceptionFixture), 
+                typeof(UnexpectedExceptionFixture),
                 "ThrowsWithBadStackTrace");
 
             Assert.AreEqual(ResultState.Error, result.ResultState);
@@ -111,7 +119,7 @@ namespace NUnit.Framework.Internal
         public void CustomExceptionIsHandled()
         {
             ITestResult result = TestBuilder.RunTestCase(
-                typeof(UnexpectedExceptionFixture), 
+                typeof(UnexpectedExceptionFixture),
                 "ThrowsCustomException");
 
             Assert.AreEqual(ResultState.Error, result.ResultState);

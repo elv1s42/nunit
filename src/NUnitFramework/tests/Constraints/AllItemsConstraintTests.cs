@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,7 +22,6 @@
 // ***********************************************************************
 
 using System;
-using System.Collections;
 using NUnit.Framework.Internal;
 using NUnit.TestUtilities.Comparers;
 
@@ -31,7 +30,7 @@ namespace NUnit.Framework.Constraints
     [TestFixture]
     public class AllItemsConstraintTests
     {
-        private readonly string NL = NUnit.Env.NewLine;
+        private readonly string NL = Environment.NewLine;
 
         [Test]
         public void AllItemsAreNotNull()
@@ -114,10 +113,19 @@ namespace NUnit.Framework.Constraints
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
 
+        [Test]
         public void WorksOnICollection()
         {
             var c = new NUnit.TestUtilities.Collections.SimpleObjectCollection(1, 2, 3);
             Assert.That(c, Is.All.Not.Null);
+        }
+        
+        [Test]
+        public void FailsWhenNotUsedAgainstAnEnumerable()
+        {
+            var notEnumerable = 42;
+            TestDelegate act = () => Assert.That(notEnumerable, new AllItemsConstraint(new RangeConstraint(10, 100)));
+            Assert.That(act, Throws.ArgumentException.With.Message.Contains("IEnumerable"));
         }
     }
 }

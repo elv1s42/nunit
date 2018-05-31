@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -42,5 +42,11 @@ namespace NUnit.Framework.Interfaces
         /// </summary>
         /// <param name="result">The result of the test</param>
         void TestFinished(ITestResult result);
+
+        /// <summary>
+        /// Called when a test produces output for immediate display
+        /// </summary>
+        /// <param name="output">A TestOutput object containing the text to display</param>
+        void TestOutput(TestOutput output);
     }
 }

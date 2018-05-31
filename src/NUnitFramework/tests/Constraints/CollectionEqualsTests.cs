@@ -1,5 +1,5 @@
 // *****************************************************
-// Copyright 2007, Charlie Poole
+// Copyright 2007, Charlie Poole, Rob Prouse
 //
 // Licensed under the Open Software License version 3.0
 // *****************************************************
@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
 using NUnit.TestUtilities.Collections;
-using Env = NUnit.Env;
 
 namespace NUnit.Framework.Constraints
 {
@@ -26,9 +25,13 @@ namespace NUnit.Framework.Constraints
             Assert.That(actual, Is.EqualTo(expected));
         }
 
+        [Test]
         public void CanMatchTwoLists()
         {
-            //IList expected = new List<int>();
+            IList expected = new List<int> { 1, 2, 3 };
+            IList actual = new List<int> { 1, 2, 3 };
+
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]
@@ -49,14 +52,13 @@ namespace NUnit.Framework.Constraints
 
             var ex = Assert.Throws<AssertionException>(() => Assert.That(actual, Is.EqualTo(expected)));
             Assert.That(ex.Message, Is.EqualTo(
-                "  Expected is <System.Int32[3]>, actual is <NUnit.TestUtilities.Collections.SimpleObjectCollection> with 3 elements" + Env.NewLine +
-                "  Values differ at index [1]" + Env.NewLine +
-                TextMessageWriter.Pfx_Expected + "2" + Env.NewLine +
-                TextMessageWriter.Pfx_Actual + "5" + Env.NewLine));
+                "  Expected is <System.Int32[3]>, actual is <NUnit.TestUtilities.Collections.SimpleObjectCollection> with 3 elements" + Environment.NewLine +
+                "  Values differ at index [1]" + Environment.NewLine +
+                TextMessageWriter.Pfx_Expected + "2" + Environment.NewLine +
+                TextMessageWriter.Pfx_Actual + "5" + Environment.NewLine));
         }
 
-        [Test]
-        [TestCaseSource( "IgnoreCaseData" )]
+        [TestCaseSource( nameof(IgnoreCaseData) )]
         public void HonorsIgnoreCase( IEnumerable expected, IEnumerable actual )
         {
             Assert.That( expected, Is.EqualTo( actual ).IgnoreCase );
@@ -72,6 +74,5 @@ namespace NUnit.Framework.Constraints
             new object[] {new List<char> {'A', 'B', 'C'}, new List<char> {'a', 'b', 'c'}},
             new object[] {new List<string> {"a", "b", "c"}, new List<string> {"A", "B", "C"}},
         };
-
     }
 }

@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,7 +22,8 @@
 // ***********************************************************************
 
 using NUnit.Framework.Interfaces;
-using NUnit.TestData.AssertFailFixture;
+using NUnit.Framework.Internal;
+using NUnit.TestData;
 using NUnit.TestUtilities;
 
 namespace NUnit.Framework.Assertions
@@ -71,6 +72,10 @@ namespace NUnit.Framework.Assertions
                 "CallAssertFail");
 
             Assert.AreEqual(ResultState.Failure, result.ResultState);
+
+            Assert.AreEqual(1, result.AssertionResults.Count);
+            var assertion = result.AssertionResults[0];
+            Assert.That(assertion.Status, Is.EqualTo(AssertionStatus.Failed));
         }
 
         [Test]
@@ -82,6 +87,11 @@ namespace NUnit.Framework.Assertions
 
             Assert.AreEqual(ResultState.Failure, result.ResultState);
             Assert.AreEqual("MESSAGE", result.Message);
+
+            Assert.AreEqual(1, result.AssertionResults.Count);
+            var assertion = result.AssertionResults[0];
+            Assert.That(assertion.Status, Is.EqualTo(AssertionStatus.Failed));
+            Assert.That(assertion.Message, Is.EqualTo("MESSAGE"));
         }
 
         [Test]
@@ -93,6 +103,51 @@ namespace NUnit.Framework.Assertions
 
             Assert.AreEqual(ResultState.Failure, result.ResultState);
             Assert.AreEqual("MESSAGE: 2+2=4", result.Message);
+
+            Assert.AreEqual(1, result.AssertionResults.Count);
+            var assertion = result.AssertionResults[0];
+            Assert.That(assertion.Status, Is.EqualTo(AssertionStatus.Failed));
+            Assert.That(assertion.Message, Is.EqualTo("MESSAGE: 2+2=4"));
+        }
+
+        [Test, Ignore("Currently Fails: Must use Assert.Catch or Assert.Throws")]
+        public void CatchingAssertionExceptionMakesTestPass()
+        {
+            try
+            {
+                Assert.Fail("This should not be seen");
+            }
+            catch
+            {
+                // Eat the exception
+            }
+
+            // Ensure that no spurious info was recorded from the assertion
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.AssertionResults.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void AssertCatchMakesTestPass()
+        {
+            Assert.Catch(() =>
+            {
+                Assert.Fail("This should not be seen");
+            });
+
+            // Ensure that no spurious info was recorded from the assertion
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.AssertionResults, Is.Empty);
+        }
+
+        [Test]
+        public void AssertThrowsMakesTestPass()
+        {
+            Assert.Throws<AssertionException>(() =>
+            {
+                Assert.Fail("This should not be seen");
+            });
+
+            // Ensure that no spurious info was recorded from the assertion
+            Assert.That(TestExecutionContext.CurrentContext.CurrentResult.AssertionResults.Count, Is.EqualTo(0));
         }
     }
 }

@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,13 +25,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
     /// <summary>
     /// ComparisonAdapter class centralizes all comparisons of
-    /// _values in NUnit, adapting to the use of any provided
+    /// values in NUnit, adapting to the use of any provided
     /// <see cref="IComparer"/>, <see cref="IComparer{T}"/>
     /// or <see cref="Comparison{T}"/>.
     /// </summary>
@@ -129,13 +130,15 @@ namespace NUnit.Framework.Constraints
             /// </summary>
             public override int Compare(object expected, object actual)
             {
-                if (!typeof(T).GetTypeInfo().IsAssignableFrom(expected.GetType().GetTypeInfo()))
-                    throw new ArgumentException("Cannot compare " + expected.ToString());
+                T expectedCast;
+                if (!TypeHelper.TryCast(expected, out expectedCast))
+                    throw new ArgumentException($"Cannot compare {expected?.ToString() ?? "null"}");
 
-                if (!typeof(T).GetTypeInfo().IsAssignableFrom(actual.GetType().GetTypeInfo()))
-                    throw new ArgumentException("Cannot compare to " + actual.ToString());
+                T actualCast;
+                if (!TypeHelper.TryCast(actual, out actualCast))
+                    throw new ArgumentException($"Cannot compare to {actual?.ToString() ?? "null"}");
 
-                return comparer.Compare((T)expected, (T)actual);
+                return comparer.Compare(expectedCast, actualCast);
             }
         }
 
@@ -156,11 +159,13 @@ namespace NUnit.Framework.Constraints
             /// </summary>
             public override int Compare(object expected, object actual)
             {
-                if (!typeof(T).GetTypeInfo().IsAssignableFrom(expected.GetType().GetTypeInfo()))
-                    throw new ArgumentException("Cannot compare " + expected.ToString());
+                T expectedCast;
+                if (!TypeHelper.TryCast(expected, out expectedCast))
+                    throw new ArgumentException($"Cannot compare {expected?.ToString() ?? "null"}");
 
-                if (!typeof(T).GetTypeInfo().IsAssignableFrom(actual.GetType().GetTypeInfo()))
-                    throw new ArgumentException("Cannot compare to " + actual.ToString());
+                T actualCast;
+                if (!TypeHelper.TryCast(actual, out actualCast))
+                    throw new ArgumentException($"Cannot compare to {actual?.ToString() ?? "null"}");
 
                 return comparison.Invoke((T)expected, (T)actual);
             }

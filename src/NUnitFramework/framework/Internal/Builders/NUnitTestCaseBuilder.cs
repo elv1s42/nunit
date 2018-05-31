@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008-2014 Charlie Poole
+// Copyright (c) 2008-2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,9 +22,8 @@
 // ***********************************************************************
 
 using System;
-#if NETCF
-using System.Linq;
-#endif
+using System.Reflection;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 
 namespace NUnit.Framework.Internal.Builders
@@ -35,8 +34,6 @@ namespace NUnit.Framework.Internal.Builders
     /// </summary>
     public class NUnitTestCaseBuilder
     {
-        private const string DEFAULT_TEST_NAME_PATTERN = "{m}{a:40}";
-
         private readonly Randomizer _randomizer = Randomizer.CreateRandomizer();
         private readonly TestNameGenerator _nameGenerator;
 
@@ -45,18 +42,17 @@ namespace NUnit.Framework.Internal.Builders
         /// </summary>
         public NUnitTestCaseBuilder()
         {
-            _nameGenerator = new TestNameGenerator(DEFAULT_TEST_NAME_PATTERN);
+            _nameGenerator = new TestNameGenerator();
         }
 
         /// <summary>
         /// Builds a single NUnitTestMethod, either as a child of the fixture
         /// or as one of a set of test cases under a ParameterizedTestMethodSuite.
         /// </summary>
-        /// <param name="method">The MethodInfo from which to construct the TestMethod</param>
+        /// <param name="method">The method to be used as a test.</param>
         /// <param name="parentSuite">The suite or fixture to which the new test will be added</param>
         /// <param name="parms">The ParameterSet to be used, or null</param>
-        /// <returns></returns>
-        public TestMethod BuildTestMethod(IMethodInfo method, Test parentSuite, TestCaseParameters parms)
+        public TestMethod BuildTestMethod(FixtureMethod method, Test parentSuite, TestCaseParameters parms)
         {
             var testMethod = new TestMethod(method, parentSuite)
             {
@@ -66,21 +62,21 @@ namespace NUnit.Framework.Internal.Builders
             CheckTestMethodSignature(testMethod, parms);
 
             if (parms == null || parms.Arguments == null)
-                testMethod.ApplyAttributesToTest(method.MethodInfo);
+                testMethod.ApplyAttributesToTest(method.Method);
+
+            // NOTE: After the call to CheckTestMethodSignature, the Method
+            // property of testMethod may no longer be the same as the
+            // original MethodInfo, so we don't use it here.
+            string prefix = testMethod.Type.FullName;
+
+            // Needed to give proper full name to test in a parameterized fixture.
+            // Without this, the arguments to the fixture are not included.
+            if (parentSuite != null)
+                prefix = parentSuite.FullName;
 
             if (parms != null)
             {
-                // NOTE: After the call to CheckTestMethodSignature, the Method
-                // property of testMethod may no longer be the same as the
-                // original MethodInfo, so we reassign it here.
-                method = testMethod.Method;
-
-                string prefix = method.TypeInfo.FullName;
-
-                // Needed to give proper fullname to test in a parameterized fixture.
-                // Without this, the arguments to the fixture are not included.
-                if (parentSuite != null)
-                    prefix = parentSuite.FullName;
+                parms.ApplyToTest(testMethod);
 
                 if (parms.TestName != null)
                 {
@@ -89,15 +85,17 @@ namespace NUnit.Framework.Internal.Builders
                         ? new TestNameGenerator(parms.TestName).GetDisplayName(testMethod, parms.OriginalArguments)
                         : parms.TestName;
                 }
-                else if (parms.OriginalArguments != null)
+                else
                 {
                     testMethod.Name = _nameGenerator.GetDisplayName(testMethod, parms.OriginalArguments);
                 }
-
-                testMethod.FullName = prefix + "." + testMethod.Name;
-
-                parms.ApplyToTest(testMethod);
             }
+            else
+            {
+                testMethod.Name = _nameGenerator.GetDisplayName(testMethod, null);
+            }
+
+            testMethod.FullName = prefix + "." + testMethod.Name;
 
             return testMethod;
         }
@@ -110,7 +108,7 @@ namespace NUnit.Framework.Internal.Builders
         ///
         /// Currently, NUnitTestMethods are required to be public,
         /// non-abstract methods, either static or instance,
-        /// returning void. They may take arguments but the _values must
+        /// returning void. They may take arguments but the values must
         /// be provided or the TestMethod is not considered runnable.
         ///
         /// Methods not meeting these criteria will be marked as
@@ -132,35 +130,16 @@ namespace NUnit.Framework.Internal.Builders
             if (!testMethod.Method.IsPublic)
                 return MarkAsNotRunnable(testMethod, "Method is not public");
 
-            IParameterInfo[] parameters;
-#if NETCF
-            if (testMethod.Method.IsGenericMethodDefinition)
-            {
-                if (parms != null && parms.Arguments != null)
-                {
-                    var mi = testMethod.Method.MakeGenericMethodEx(parms.Arguments);
-                    if (mi == null)
-                        return MarkAsNotRunnable(testMethod, "Cannot determine generic types by probing");
-                    testMethod.Method = mi;
-                    parameters = testMethod.Method.GetParameters();
-                }
-                else
-                    parameters = new IParameterInfo[0];
-            }
-            else
-                parameters = testMethod.Method.GetParameters();
-
-            int minArgsNeeded = parameters.Length;
-#else
+            ParameterInfo[] parameters;
             parameters = testMethod.Method.GetParameters();
             int minArgsNeeded = 0;
             foreach (var parameter in parameters)
             {
-                // IsOptional is supported since .NET 1.1 
+                // IsOptional is supported since .NET 1.1
                 if (!parameter.IsOptional)
                     minArgsNeeded++;
             }
-#endif
+
             int maxArgsNeeded = parameters.Length;
 
             object[] arglist = null;
@@ -180,19 +159,15 @@ namespace NUnit.Framework.Internal.Builders
                     return false;
             }
 
-#if NETCF
-            ITypeInfo returnType = testMethod.Method.IsGenericMethodDefinition && (parms == null || parms.Arguments == null) ? new TypeWrapper(typeof(void)) : testMethod.Method.ReturnType;
-#else
-            ITypeInfo returnType = testMethod.Method.ReturnType;
-#endif
+            Type returnType = testMethod.Method.ReturnType;
 
-#if NET_4_0 || NET_4_5 || PORTABLE
-            if (AsyncInvocationRegion.IsAsyncOperation(testMethod.Method.MethodInfo))
+#if ASYNC
+            if (AsyncToSyncAdapter.IsAsyncOperation(testMethod.Method))
             {
-                if (returnType.IsType(typeof(void)))
+                if (returnType == typeof(void))
                     return MarkAsNotRunnable(testMethod, "Async test method must have non-void return type");
 
-                var returnsGenericTask = returnType.IsGenericType &&
+                var returnsGenericTask = returnType.GetTypeInfo().IsGenericType &&
                     returnType.GetGenericTypeDefinition() == typeof(System.Threading.Tasks.Task<>);
 
                 if (returnsGenericTask && (parms == null || !parms.HasExpectedResult))
@@ -205,7 +180,7 @@ namespace NUnit.Framework.Internal.Builders
             }
             else
 #endif
-            if (returnType.IsType(typeof(void)))
+            if (returnType == typeof(void))
             {
                 if (parms != null && parms.HasExpectedResult)
                     return MarkAsNotRunnable(testMethod, "Method returning void cannot have an expected result");
@@ -214,7 +189,7 @@ namespace NUnit.Framework.Internal.Builders
                 return MarkAsNotRunnable(testMethod, "Method has non-void return value, but no result is expected");
 
             if (argsProvided > 0 && maxArgsNeeded == 0)
-                return MarkAsNotRunnable(testMethod, "Arguments provided for method not taking any");
+                return MarkAsNotRunnable(testMethod, "Arguments provided for method with no parameters");
 
             if (argsProvided == 0 && minArgsNeeded > 0)
                 return MarkAsNotRunnable(testMethod, "No arguments were provided");
@@ -227,11 +202,9 @@ namespace NUnit.Framework.Internal.Builders
 
             if (testMethod.Method.IsGenericMethodDefinition && arglist != null)
             {
-                var typeArguments = new GenericMethodHelper(testMethod.Method.MethodInfo).GetTypeArguments(arglist);
-                foreach (Type o in typeArguments)
-                    if (o == null || o == TypeHelper.NonmatchingType)
-                        return MarkAsNotRunnable(testMethod, "Unable to determine type arguments for method");
-
+                Type[] typeArguments;
+                if (!new GenericMethodHelper(testMethod.Method).TryGetTypeArguments(arglist, out typeArguments))
+                    return MarkAsNotRunnable(testMethod, "Unable to determine type arguments for method");
 
                 testMethod.Method = testMethod.Method.MakeGenericMethod(typeArguments);
                 parameters = testMethod.Method.GetParameters();
@@ -245,8 +218,7 @@ namespace NUnit.Framework.Internal.Builders
 
         private static bool MarkAsNotRunnable(TestMethod testMethod, string reason)
         {
-            testMethod.RunState = RunState.NotRunnable;
-            testMethod.Properties.Set(PropertyNames.SkipReason, reason);
+            testMethod.MakeInvalid(reason);
             return false;
         }
 

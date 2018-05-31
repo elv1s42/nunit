@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2012 Charlie Poole
+// Copyright (c) 2012–2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,8 +23,6 @@
 
 using System.Collections.Generic;
 using NUnit.Framework.Interfaces;
-using NUnit.Framework.Internal.Commands;
-using NUnit.Framework.Internal.Execution;
 
 namespace NUnit.Framework.Internal
 {
@@ -34,6 +32,7 @@ namespace NUnit.Framework.Internal
     public class TestMethod : Test
     {
         #region Fields
+        private static readonly object[] NoArguments = new object[0];
 
         /// <summary>
         /// The ParameterSet used to create this test method
@@ -48,14 +47,14 @@ namespace NUnit.Framework.Internal
         /// Initializes a new instance of the <see cref="TestMethod"/> class.
         /// </summary>
         /// <param name="method">The method to be used as a test.</param>
-        public TestMethod(IMethodInfo method) : base (method) { }
+        public TestMethod(FixtureMethod method) : base(method) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="TestMethod"/> class.
         /// </summary>
         /// <param name="method">The method to be used as a test.</param>
         /// <param name="parentSuite">The suite or fixture to which the new test will be added</param>
-        public TestMethod(IMethodInfo method, Test parentSuite) : base(method ) 
+        public TestMethod(FixtureMethod method, Test parentSuite) : base(method)
         {
             // Needed to give proper fullname to test in a parameterized fixture.
             // Without this, the arguments to the fixture are not included.
@@ -76,15 +75,17 @@ namespace NUnit.Framework.Internal
         {
             get { return parms != null ? parms.ExpectedResult : null; }
         }
-
-        internal object[] Arguments
-        {
-            get { return parms != null ? parms.Arguments : null; }
-        }
-
         #endregion
 
         #region Test Overrides
+
+        /// <summary>
+        /// The arguments to use in executing the test method, or empty array if none are provided.
+        /// </summary>
+        public override object[] Arguments
+        {
+            get { return parms != null ? parms.Arguments : NoArguments; }
+        }
 
         /// <summary>
         /// Overridden to return a TestCaseResult.

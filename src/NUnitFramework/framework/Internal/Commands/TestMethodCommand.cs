@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2010 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -56,51 +56,45 @@ namespace NUnit.Framework.Internal.Commands
         /// <param name="context">The execution context</param>
         public override TestResult Execute(TestExecutionContext context)
         {
-            // TODO: Decide if we should handle exceptions here
+            // NOTE: Things would be cleaner if we could handle
+            // exceptions in this command. However, that would
+            // make it impossible to write a wrapper command to
+            // implement ExpectedException, among other things.
+
             object result = RunTestMethod(context);
 
             if (testMethod.HasExpectedResult)
                 NUnit.Framework.Assert.AreEqual(testMethod.ExpectedResult, result);
 
             context.CurrentResult.SetResult(ResultState.Success);
-            // TODO: Set assert count here?
-            //context.CurrentResult.AssertCount = context.AssertCount;
+
+            if (context.CurrentResult.AssertionResults.Count > 0)
+                context.CurrentResult.RecordTestCompletion();
+
             return context.CurrentResult;
         }
 
         private object RunTestMethod(TestExecutionContext context)
         {
-#if NET_4_0 || NET_4_5 || PORTABLE
-            if (AsyncInvocationRegion.IsAsyncOperation(testMethod.Method.MethodInfo))
-                return RunAsyncTestMethod(context);
-            else
-#endif
-                return RunNonAsyncTestMethod(context);
-        }
-
-#if NET_4_0 || NET_4_5 || PORTABLE
-        private object RunAsyncTestMethod(TestExecutionContext context)
-        {
-            using (AsyncInvocationRegion region = AsyncInvocationRegion.Create(testMethod.Method.MethodInfo))
+#if ASYNC
+            if (AsyncToSyncAdapter.IsAsyncOperation(testMethod.Method))
             {
-                object result = Reflect.InvokeMethod(testMethod.Method.MethodInfo, context.TestObject, arguments);
-
                 try
                 {
-                    return region.WaitForPendingOperationsToComplete(result);
+                    return AsyncToSyncAdapter.Await(() => InvokeTestMethod(context));
                 }
                 catch (Exception e)
                 {
                     throw new NUnitException("Rethrown", e);
                 }
             }
-        }
 #endif
+            return InvokeTestMethod(context);
+        }
 
-        private object RunNonAsyncTestMethod(TestExecutionContext context)
+        private object InvokeTestMethod(TestExecutionContext context)
         {
-            //return Reflect.InvokeMethod(testMethod.Method.MethodInfo, context.TestObject, arguments);
-            return testMethod.Method.Invoke(context.TestObject, arguments);
+            return Reflect.InvokeMethod(testMethod.Method, context.TestObject, arguments);
         }
     }
 }

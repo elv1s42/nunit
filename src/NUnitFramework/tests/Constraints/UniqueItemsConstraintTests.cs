@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,6 +22,9 @@
 // ***********************************************************************
 
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using NUnit.TestUtilities;
 using NUnit.TestUtilities.Collections;
 
 namespace NUnit.Framework.Constraints
@@ -41,10 +44,10 @@ namespace NUnit.Framework.Constraints
         static object[] FailureData = new object[] { new object[] { new int[] { 1, 3, 17, 3, 34 }, "< 1, 3, 17, 3, 34 >" } };
 
         [Test]
-        [TestCaseSource( "IgnoreCaseData" )]
+        [TestCaseSource( nameof(IgnoreCaseData) )]
         public void HonorsIgnoreCase( IEnumerable actual )
         {
-            Assert.That( new UniqueItemsConstraint().IgnoreCase.ApplyTo( actual ).IsSuccess, Is.False, "{0} should be unique ignoring case", actual );
+            Assert.That( new UniqueItemsConstraint().IgnoreCase.ApplyTo( actual ).IsSuccess, Is.False, "{0} should not be unique ignoring case", actual );
         }
 
         private static readonly object[] IgnoreCaseData =
@@ -53,5 +56,28 @@ namespace NUnit.Framework.Constraints
             new object[] {new[] {'A', 'B', 'C', 'c'}},
             new object[] {new[] {"a", "b", "c", "C"}}
         };
+
+        static readonly IEnumerable<int> RANGE = Enumerable.Range(0, 10000);
+
+        static readonly TestCaseData[] PerformanceData =
+        {
+            new TestCaseData(RANGE, false),
+            new TestCaseData(new List<int>(RANGE), false),
+            new TestCaseData(new List<double>(RANGE.Select(v => (double)v)), false),
+            new TestCaseData(new List<string>(RANGE.Select(v => v.ToString())), false),
+            new TestCaseData(new List<string>(RANGE.Select(v => v.ToString())), true)
+        };
+
+        [TestCaseSource(nameof(PerformanceData))]
+        public void PerformanceTests(IEnumerable values, bool ignoreCase)
+        {
+            Warn.Unless(() =>
+            {
+                if (ignoreCase)
+                    Assert.That(values, Is.Unique.IgnoreCase);
+                else
+                    Assert.That(values, Is.Unique);
+            }, HelperConstraints.HasMaxTime(100));
+        }
     }
 }

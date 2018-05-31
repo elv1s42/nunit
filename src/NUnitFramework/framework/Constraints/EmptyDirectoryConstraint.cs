@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008 Charlie Poole
+// Copyright (c) 2008 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !PORTABLE
 using System;
 using System.IO;
 
@@ -53,7 +52,7 @@ namespace NUnit.Framework.Constraints
         {
             DirectoryInfo dirInfo = actual as DirectoryInfo;
             if (dirInfo == null)
-                throw new ArgumentException("The actual value must be a DirectoryInfo", "actual");
+                throw new ArgumentException("The actual value must be a DirectoryInfo", nameof(actual));
             files = dirInfo.GetFiles().Length;
             subdirs = dirInfo.GetDirectories().Length;
             bool hasSucceeded = files == 0 && subdirs == 0;
@@ -82,4 +81,3 @@ namespace NUnit.Framework.Constraints
         //}
     }
 }
-#endif

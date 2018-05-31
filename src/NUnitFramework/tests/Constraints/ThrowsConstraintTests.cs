@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -39,16 +39,16 @@ namespace NUnit.Framework.Constraints
             stringRepresentation = "<throws <typeof System.ArgumentException>>";
         }
 
-        static object[] SuccessData = new object[]
+        static readonly object[] SuccessData =
         {
             new TestDelegate( TestDelegates.ThrowsArgumentException )
         };
 
-        static object[] FailureData = new object[]
+        static readonly object[] FailureData =
         {
-            new TestCaseData( new TestDelegate( TestDelegates.ThrowsNullReferenceException ), "<System.NullReferenceException: my message" + Env.NewLine ),
+            new TestCaseData( new TestDelegate( TestDelegates.ThrowsNullReferenceException ), "<System.NullReferenceException: my message" + Environment.NewLine ),
             new TestCaseData( new TestDelegate( TestDelegates.ThrowsNothing ), "no exception thrown" ),
-            new TestCaseData( new TestDelegate( TestDelegates.ThrowsSystemException ), "<System.Exception: my message" + Env.NewLine )
+            new TestCaseData( new TestDelegate( TestDelegates.ThrowsSystemException ), "<System.Exception: my message" + Environment.NewLine )
         };
     }
 
@@ -78,8 +78,6 @@ namespace NUnit.Framework.Constraints
         };
     }
 
-// TODO: Find a different example for use with NETCF - ArgumentException does not have a ParamName member
-#if !NETCF && !SILVERLIGHT
     public class ThrowsConstraintTest_WithConstraint : ThrowsConstraintTestBase
     {
         [SetUp]
@@ -93,19 +91,18 @@ namespace NUnit.Framework.Constraints
             stringRepresentation = @"<throws <and <typeof System.ArgumentException> <property ParamName <equal ""myParam"">>>>";
         }
 
-        static object[] SuccessData = new object[]
+        static readonly object[] SuccessData =
         {
             new TestDelegate( TestDelegates.ThrowsArgumentException )
         };
 
-        static object[] FailureData = new object[]
+        static readonly object[] FailureData =
         {
-            new TestCaseData( new TestDelegate( TestDelegates.ThrowsNullReferenceException ), "<System.NullReferenceException: my message" + Env.NewLine ),
+            new TestCaseData( new TestDelegate( TestDelegates.ThrowsNullReferenceException ), "<System.NullReferenceException: my message" + Environment.NewLine ),
             new TestCaseData( new TestDelegate( TestDelegates.ThrowsNothing ), "no exception thrown" ),
-            new TestCaseData( new TestDelegate( TestDelegates.ThrowsSystemException ), "<System.Exception: my message" + Env.NewLine )
+            new TestCaseData( new TestDelegate( TestDelegates.ThrowsSystemException ), "<System.Exception: my message" + Environment.NewLine )
         };
     }
-#endif
 
     public abstract class ThrowsConstraintTestBase : ConstraintTestBaseNoData
     {
@@ -124,7 +121,7 @@ namespace NUnit.Framework.Constraints
         [Test, TestCaseSource("FailureData")]
         public void FailsWithBadValues(object badValue, string message)
         {
-            string NL = Env.NewLine;
+            string NL = Environment.NewLine;
 
             var constraintResult = theConstraint.ApplyTo(badValue);
             Assert.IsFalse(constraintResult.IsSuccess);

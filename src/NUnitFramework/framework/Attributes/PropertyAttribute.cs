@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,7 +33,7 @@ namespace NUnit.Framework
     [AttributeUsage(AttributeTargets.Class|AttributeTargets.Method|AttributeTargets.Assembly, AllowMultiple=true, Inherited=true)]
     public class PropertyAttribute : NUnitAttribute, IApplyToTest
     {
-        private PropertyBag properties = new PropertyBag();
+        private readonly PropertyBag properties = new PropertyBag();
 
         /// <summary>
         /// Construct a PropertyAttribute with a name and string value

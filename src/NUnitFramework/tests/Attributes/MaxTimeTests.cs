@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -20,8 +20,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
-#if !PORTABLE
-using System;
+
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.TestData;
@@ -32,7 +32,7 @@ namespace NUnit.Framework.Attributes
     /// <summary>
     /// Tests for MaxTime decoration.
     /// </summary>
-    [TestFixture, Parallelizable(ParallelScope.None)]
+    [TestFixture, NonParallelizable]
     public class MaxTimeTests
     {
         [Test,MaxTime(1000)]
@@ -46,7 +46,7 @@ namespace NUnit.Framework.Attributes
         {
             ITestResult suiteResult = TestBuilder.RunTestFixture(typeof(MaxTimeFixture));
             Assert.AreEqual(ResultState.ChildFailure, suiteResult.ResultState);
-            ITestResult result = suiteResult.Children[0];
+            ITestResult result = suiteResult.Children.ToArray()[0];
             Assert.That(result.Message, Does.Contain("exceeds maximum of 1ms"));
         }
 
@@ -55,7 +55,7 @@ namespace NUnit.Framework.Attributes
         {
             ITestResult suiteResult = TestBuilder.RunTestFixture(typeof(MaxTimeFixtureWithTestCase));
             Assert.AreEqual(ResultState.ChildFailure, suiteResult.ResultState);
-            ITestResult result = suiteResult.Children[0].Children[0];
+            ITestResult result = suiteResult.Children.ToArray()[0].Children.ToArray()[0];
             Assert.That(result.Message, Does.Contain("exceeds maximum of 1ms"));
         }
 
@@ -72,7 +72,7 @@ namespace NUnit.Framework.Attributes
         {
             ITestResult result = TestBuilder.RunTestFixture(typeof(MaxTimeFixtureWithFailure));
             Assert.AreEqual(ResultState.ChildFailure, result.ResultState);
-            result = (TestResult)result.Children[0];
+            result = (TestResult)result.Children.ToArray()[0];
             Assert.AreEqual(ResultState.Failure, result.ResultState);
             Assert.That(result.Message, Is.EqualTo("Intentional Failure"));
         }
@@ -82,10 +82,9 @@ namespace NUnit.Framework.Attributes
         {
             ITestResult result = TestBuilder.RunTestFixture(typeof(MaxTimeFixtureWithError));
             Assert.AreEqual(ResultState.ChildFailure, result.ResultState);
-            result = result.Children[0];
+            result = result.Children.ToArray()[0];
             Assert.AreEqual(ResultState.Error, result.ResultState);
             Assert.That(result.Message, Does.Contain("Exception message"));
         }
     }
 }
-#endif

@@ -1,15 +1,14 @@
-﻿using System;
+using System;
 using System.IO;
 using NUnit.Framework.Constraints;
 using NUnit.TestUtilities.Comparers;
 
 namespace NUnit.Framework.Syntax
 {
+    [Obsolete("Test of Obsolete AssertionHelper class")]
     class AssertionHelperTests : AssertionHelper
     {
-#if !PORTABLE
         private static readonly string DEFAULT_PATH_CASE = Path.DirectorySeparatorChar == '\\' ? "ignorecase" : "respectcase";
-#endif
 
         #region Not
 
@@ -183,7 +182,6 @@ namespace NUnit.Framework.Syntax
 
         #region Attribute
 
-#if !PORTABLE
         [Test]
         public void AttributeExistsTest()
         {
@@ -223,7 +221,6 @@ namespace NUnit.Framework.Syntax
             Expect(constraint, TypeOf<AttributeConstraint>());
             Expect(constraint.ToString(), EqualTo("<attribute NUnit.Framework.TestFixtureAttribute <property Description <not <null>>>>"));
         }
-#endif
 
         #endregion
 
@@ -312,13 +309,12 @@ namespace NUnit.Framework.Syntax
         #endregion
 
         #region After
-
-#if !PORTABLE
+        
         [Test]
         public void After()
         {
             var constraint = EqualTo(10).After(1000);
-            Expect(constraint, TypeOf<DelayedConstraint>());
+            Expect(constraint, TypeOf<DelayedConstraint.WithRawDelayInterval>());
             Expect(constraint.ToString(), EqualTo("<after 1000 <equal 10>>"));
         }
 
@@ -326,7 +322,7 @@ namespace NUnit.Framework.Syntax
         public void After_Property()
         {
             var constraint = Property("X").EqualTo(10).After(1000);
-            Expect(constraint, TypeOf<DelayedConstraint>());
+            Expect(constraint, TypeOf<DelayedConstraint.WithRawDelayInterval>());
             Expect(constraint.ToString(), EqualTo("<after 1000 <property X <equal 10>>>"));
         }
 
@@ -334,10 +330,9 @@ namespace NUnit.Framework.Syntax
         public void After_And()
         {
             var constraint = GreaterThan(0).And.LessThan(10).After(1000);
-            Expect(constraint, TypeOf<DelayedConstraint>());
+            Expect(constraint, TypeOf<DelayedConstraint.WithRawDelayInterval>());
             Expect(constraint.ToString(), EqualTo("<after 1000 <and <greaterthan 0> <lessthan 10>>>"));
         }
-#endif
 
         #endregion
 
@@ -431,8 +426,48 @@ namespace NUnit.Framework.Syntax
         public void ContainsConstraint()
         {
             var constraint = Contains(42);
-            Expect(constraint, TypeOf<CollectionContainsConstraint>());
-            Expect(constraint.ToString(), EqualTo("<contains 42>"));
+            Expect(constraint, TypeOf<SomeItemsConstraint>());
+            Expect(constraint.ToString(), EqualTo("<some <equal 42>>"));
+        }
+
+        [Test]
+        public void ContainsConstraintWithOr()
+        {
+            var constraint = Contains(5).Or.Contains(7);
+            var collection1 = new[] { 3, 5, 1, 8 };
+            var collection2 = new[] { 2, 7, 9, 2 };
+            Assert.That(collection1, constraint);
+            Assert.That(collection2, constraint);
+        }
+
+        [Test]
+        public void ContainsConstraintWithUsing()
+        {
+            Func<int, int, bool> myIntComparer = (x, y) => x == y;
+            var constraint = Contains(5).Using(myIntComparer);
+            var collection = new[] { 3, 5, 1, 8 };
+            Assert.That(collection, constraint);
+        }
+
+        #endregion
+
+        #region Member
+
+        [Test]
+        public void MemberConstraintWithAnd()
+        {
+            var constraint = Member(1).And.Member(7);
+            var collection = new[] { 2, 1, 7, 4 };
+            Assert.That(collection, constraint);
+        }
+
+        [Test]
+        public void MemberConstraintWithUsing()
+        {
+            Func<int, int, bool> myIntComparer = (x, y) => x == y;
+            var constraint = Member(1).Using(myIntComparer);
+            var collection = new[] { 2, 1, 7, 4 };
+            Assert.That(collection, constraint);
         }
 
         #endregion
@@ -611,7 +646,6 @@ namespace NUnit.Framework.Syntax
 
         #region SamePath
 
-#if !PORTABLE
         [Test]
         public void SamePath()
         {
@@ -656,13 +690,11 @@ namespace NUnit.Framework.Syntax
             Expect(constraint, TypeOf<NotConstraint>());
             Expect(constraint.ToString(), EqualTo(@"<not <samepath ""/path/to/match"" respectcase>>"));
         }
-#endif
 
-#endregion
+        #endregion
 
-#region SamePathOrUnder
+        #region SamePathOrUnder
 
-#if !PORTABLE
         [Test]
         public void SamePathOrUnder()
         {
@@ -707,13 +739,12 @@ namespace NUnit.Framework.Syntax
             Expect(constraint, TypeOf<NotConstraint>());
             Expect(constraint.ToString(), EqualTo(@"<not <samepathorunder ""/path/to/match"" respectcase>>"));
         }
-#endif
 
         #endregion
 
         #region BinarySerializable
 
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
         [Test]
         public void BinarySerializableConstraint()
         {
@@ -727,7 +758,7 @@ namespace NUnit.Framework.Syntax
 
         #region XmlSerializable
 
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
         [Test]
         public void XmlSerializableConstraint()
         {

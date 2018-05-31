@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,9 +22,8 @@
 // ***********************************************************************
 
 using System;
-#if !NETCF
+using System.Linq;
 using System.Security.Principal;
-#endif
 using System.Threading;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -42,7 +41,7 @@ namespace NUnit.Framework.Attributes
         {
             SetUpAndTearDownFixture fixture = new SetUpAndTearDownFixture();
             TestBuilder.RunTestFixture(fixture);
-            
+
             Assert.AreEqual(1, fixture.setUpCount, "SetUp");
             Assert.AreEqual(1, fixture.tearDownCount, "TearDown");
         }
@@ -52,7 +51,7 @@ namespace NUnit.Framework.Attributes
         {
             var fixture = new SetUpAndTearDownFixtureWithTestCases();
             TestBuilder.RunTestFixture(fixture);
-            
+
             Assert.AreEqual(1, fixture.setUpCount, "SetUp");
             Assert.AreEqual(1, fixture.tearDownCount, "TearDown");
         }
@@ -62,7 +61,7 @@ namespace NUnit.Framework.Attributes
         {
             var fixture = new SetUpAndTearDownFixtureWithTheories();
             TestBuilder.RunTestFixture(fixture);
-            
+
             Assert.AreEqual(1, fixture.setUpCount, "SetUp");
             Assert.AreEqual(1, fixture.tearDownCount, "TearDown");
         }
@@ -169,7 +168,7 @@ namespace NUnit.Framework.Attributes
         }
 
         [Test]
-        public void HandleErrorInFixtureSetup() 
+        public void HandleErrorInFixtureSetup()
         {
             MisbehavingFixture fixture = new MisbehavingFixture();
             fixture.blowUpInSetUp = true;
@@ -182,12 +181,12 @@ namespace NUnit.Framework.Attributes
             Assert.AreEqual("System.Exception : This was thrown from fixture setup", result.Message, "TestSuite Message");
             Assert.IsNotNull(result.StackTrace, "TestSuite StackTrace should not be null");
 
-            Assert.AreEqual(1, result.Children.Count, "Child result count");
+            Assert.AreEqual(1, result.Children.Count(), "Child result count");
             Assert.AreEqual(1, result.FailCount, "Failure count");
         }
 
         [Test]
-        public void RerunFixtureAfterSetUpFixed() 
+        public void RerunFixtureAfterSetUpFixed()
         {
             MisbehavingFixture fixture = new MisbehavingFixture();
             fixture.blowUpInSetUp = true;
@@ -206,17 +205,17 @@ namespace NUnit.Framework.Attributes
         }
 
         [Test]
-        public void HandleIgnoreInFixtureSetup() 
+        public void HandleIgnoreInFixtureSetup()
         {
             IgnoreInFixtureSetUp fixture = new IgnoreInFixtureSetUp();
             ITestResult result = TestBuilder.RunTestFixture(fixture);
 
             // should have one suite and one fixture
             Assert.AreEqual(ResultState.Ignored.WithSite(FailureSite.SetUp), result.ResultState, "Suite should be ignored");
-            Assert.AreEqual("TestFixtureSetUp called Ignore", result.Message);
+            Assert.AreEqual("OneTimeSetUp called Ignore", result.Message);
             Assert.IsNotNull(result.StackTrace, "StackTrace should not be null");
 
-            Assert.AreEqual(1, result.Children.Count, "Child result count");
+            Assert.AreEqual(1, result.Children.Count(), "Child result count");
             Assert.AreEqual(1, result.SkipCount, "SkipCount");
         }
 
@@ -226,7 +225,7 @@ namespace NUnit.Framework.Attributes
             MisbehavingFixture fixture = new MisbehavingFixture();
             fixture.blowUpInTearDown = true;
             ITestResult result = TestBuilder.RunTestFixture(fixture);
-            Assert.AreEqual(1, result.Children.Count);
+            Assert.AreEqual(1, result.Children.Count());
             Assert.AreEqual(ResultState.TearDownError, result.ResultState);
 
             Assert.AreEqual(1, fixture.setUpCount, "setUpCount");
@@ -243,13 +242,13 @@ namespace NUnit.Framework.Attributes
             fixture.blowUpInTest = true;
             fixture.blowUpInTearDown = true;
             ITestResult result = TestBuilder.RunTestFixture(fixture);
-            Assert.AreEqual(1, result.Children.Count);
+            Assert.AreEqual(1, result.Children.Count());
             Assert.AreEqual(ResultState.TearDownError, result.ResultState);
 
             Assert.AreEqual(1, fixture.setUpCount, "setUpCount");
             Assert.AreEqual(1, fixture.tearDownCount, "tearDownCount");
 
-            Assert.AreEqual(TestResult.CHILD_ERRORS_MESSAGE + Env.NewLine + "TearDown : System.Exception : This was thrown from fixture teardown", result.Message);
+            Assert.AreEqual(TestResult.CHILD_ERRORS_MESSAGE + Environment.NewLine + "TearDown : System.Exception : This was thrown from fixture teardown", result.Message);
             Assert.That(result.ResultState.Site, Is.EqualTo(FailureSite.TearDown));
             Assert.That(result.StackTrace, Does.Contain("--TearDown"));
         }
@@ -261,13 +260,13 @@ namespace NUnit.Framework.Attributes
             fixture.blowUpInSetUp = true;
             fixture.blowUpInTearDown = true;
             ITestResult result = TestBuilder.RunTestFixture(fixture);
-            Assert.AreEqual(1, result.Children.Count);
+            Assert.AreEqual(1, result.Children.Count());
             Assert.AreEqual(ResultState.TearDownError, result.ResultState);
 
             Assert.AreEqual(1, fixture.setUpCount, "setUpCount");
             Assert.AreEqual(1, fixture.tearDownCount, "tearDownCount");
 
-            Assert.AreEqual("System.Exception : This was thrown from fixture setup" + Env.NewLine + 
+            Assert.AreEqual("System.Exception : This was thrown from fixture setup" + Environment.NewLine +
                 "TearDown : System.Exception : This was thrown from fixture teardown", result.Message);
             Assert.That(result.StackTrace, Does.Contain("--TearDown"));
         }
@@ -281,17 +280,17 @@ namespace NUnit.Framework.Attributes
             Assert.AreEqual("System.Exception : This was thrown in constructor", result.Message, "TestSuite Message");
             Assert.IsNotNull(result.StackTrace, "TestSuite StackTrace should not be null");
 
-            Assert.AreEqual(1, result.Children.Count, "Child result count");
+            Assert.AreEqual(1, result.Children.Count(), "Child result count");
             Assert.AreEqual(1, result.FailCount, "Failure count");
         }
 
         [Test]
-        public void RerunFixtureAfterTearDownFixed() 
+        public void RerunFixtureAfterTearDownFixed()
         {
             MisbehavingFixture fixture = new MisbehavingFixture();
             fixture.blowUpInTearDown = true;
             ITestResult result = TestBuilder.RunTestFixture(fixture);
-            Assert.AreEqual(1, result.Children.Count);
+            Assert.AreEqual(1, result.Children.Count());
 
             fixture.Reinitialize();
             result = TestBuilder.RunTestFixture(fixture);
@@ -334,16 +333,16 @@ namespace NUnit.Framework.Attributes
             suite.Add( fixtureSuite );
 
             TestBuilder.RunTest(fixtureSuite, fixture);
-            Assert.IsFalse( fixture.setupCalled, "TestFixtureSetUp called running fixture" );
-            Assert.IsFalse( fixture.teardownCalled, "TestFixtureTearDown called running fixture" );
+            Assert.IsFalse( fixture.setupCalled, "OneTimeSetUp called running fixture");
+            Assert.IsFalse( fixture.teardownCalled, "OneTimeSetUp called running fixture");
 
             TestBuilder.RunTest(suite, fixture);
-            Assert.IsFalse( fixture.setupCalled, "TestFixtureSetUp called running enclosing suite" );
-            Assert.IsFalse( fixture.teardownCalled, "TestFixtureTearDown called running enclosing suite" );
+            Assert.IsFalse( fixture.setupCalled, "OneTimeSetUp called running enclosing suite");
+            Assert.IsFalse( fixture.teardownCalled, "OneTimeTearDown called running enclosing suite");
 
             TestBuilder.RunTest(testMethod, fixture);
-            Assert.IsFalse( fixture.setupCalled, "TestFixtureSetUp called running a test case" );
-            Assert.IsFalse( fixture.teardownCalled, "TestFixtureTearDown called running a test case" );
+            Assert.IsFalse( fixture.setupCalled, "OneTimeSetUp called running a test case");
+            Assert.IsFalse( fixture.teardownCalled, "OneTimeTearDown called running a test case");
         }
 
         [Test]
@@ -363,6 +362,7 @@ namespace NUnit.Framework.Attributes
             var fixture = new DisposableFixture();
             TestBuilder.RunTestFixture(fixture);
             Assert.That(fixture.disposeCalled, Is.EqualTo(1));
+            Assert.That(fixture.Actions, Is.EqualTo(new object[] { "OneTimeSetUp", "OneTimeTearDown", "Dispose" }));
         }
 
         [Test]
@@ -374,7 +374,7 @@ namespace NUnit.Framework.Attributes
         }
     }
 
-#if !SILVERLIGHT && !NETCF && !PORTABLE
+#if !NETCOREAPP1_1
     [TestFixture]
     class ChangesMadeInFixtureSetUp
     {

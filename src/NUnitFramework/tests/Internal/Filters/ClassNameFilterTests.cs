@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -31,7 +31,7 @@ namespace NUnit.Framework.Internal.Filters
     [TestFixture("Dummy", true)]
     public class ClassNameFilterTests : TestFilterTests
     {
-        private TestFilter _filter;
+        private readonly TestFilter _filter;
 
         public ClassNameFilterTests(string value, bool isRegex)
         {

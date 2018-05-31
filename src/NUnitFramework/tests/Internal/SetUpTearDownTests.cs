@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.TestUtilities;
 using NUnit.TestData.SetUpData;
@@ -122,7 +123,7 @@ namespace NUnit.Framework.Internal
             fixture.setupException = e;
             ITestResult suiteResult = TestBuilder.RunTestFixture(fixture);
             Assert.IsTrue(suiteResult.HasChildren, "Fixture test should have child result.");
-            TestResult result = (TestResult)suiteResult.Children[0];
+            TestResult result = (TestResult)suiteResult.Children.ToArray()[0];
             Assert.AreEqual(ResultState.Error, result.ResultState, "Test should be in error state");
             string expected = string.Format("{0} : {1}", e.GetType().FullName, e.Message);
             Assert.AreEqual(expected, result.Message);
@@ -137,7 +138,7 @@ namespace NUnit.Framework.Internal
             fixture.tearDownException = e;
             ITestResult suiteResult = TestBuilder.RunTestFixture(fixture);
             Assert.That(suiteResult.HasChildren, "Fixture test should have child result.");
-            ITestResult result = suiteResult.Children[0];
+            ITestResult result = suiteResult.Children.ToArray()[0];
             Assert.AreEqual(ResultState.Error, result.ResultState, "Test should be in error state");
             string expected = string.Format("TearDown : {0} : {1}", e.GetType().FullName, e.Message);
             Assert.AreEqual(expected, result.Message);
@@ -155,9 +156,9 @@ namespace NUnit.Framework.Internal
             fixture.tearDownException = e2;
             ITestResult suiteResult = TestBuilder.RunTestFixture(fixture);
             Assert.That(suiteResult.HasChildren, "Fixture test should have child result.");
-            ITestResult result = suiteResult.Children[0];
+            ITestResult result = suiteResult.Children.ToArray()[0];
             Assert.AreEqual(ResultState.Error, result.ResultState, "Test should be in error state");
-            string expected = string.Format("{0} : {1}", e1.GetType().FullName, e1.Message) + Env.NewLine
+            string expected = string.Format("{0} : {1}", e1.GetType().FullName, e1.Message) + Environment.NewLine
                 + string.Format("TearDown : {0} : {1}", e2.GetType().FullName, e2.Message);
             Assert.AreEqual(expected, result.Message);
             Assert.That(result.StackTrace, Does.Contain("--TearDown"));

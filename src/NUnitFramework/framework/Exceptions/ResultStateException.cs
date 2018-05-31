@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -30,7 +30,9 @@ namespace NUnit.Framework
     /// <summary>
     /// Abstract base for Exceptions that terminate a test and provide a ResultState.
     /// </summary>
+#if !NETSTANDARD1_6
     [Serializable]
+#endif
     public abstract class ResultStateException : Exception
     {
         /// <param name="message">The error message that explains 
@@ -46,7 +48,7 @@ namespace NUnit.Framework
             base(message, inner) 
         {}
 
-#if !NETCF && !SILVERLIGHT && !PORTABLE
+#if !NETSTANDARD1_6
         /// <summary>
         /// Serialization Constructor
         /// </summary>

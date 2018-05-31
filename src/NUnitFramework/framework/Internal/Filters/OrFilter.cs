@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007-2015 Charlie Poole
+// Copyright (c) 2007-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -31,8 +31,7 @@ namespace NUnit.Framework.Internal.Filters
     /// Combines multiple filters so that a test must pass one 
     /// of them in order to pass this filter.
     /// </summary>
-    [Serializable]
-    public class OrFilter : CompositeFilter
+    internal class OrFilter : CompositeFilter
     {
         /// <summary>
         /// Constructs an empty OrFilter

@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2008-2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2008-2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,34 +22,21 @@
 // ***********************************************************************
 
 using System;
-#if NETCF || PORTABLE
-using System.Linq;
-#endif
+using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using NUnit.Framework.Compatibility;
-using NUnit.Framework.Interfaces;
+using NUnit.Compatibility;
 
 namespace NUnit.Framework.Internal
 {
     /// <summary>
     /// TypeHelper provides static methods that operate on Types.
     /// </summary>
-    public class TypeHelper
+    public static class TypeHelper
     {
         private const int STRING_MAX = 40;
         private const int STRING_LIMIT = STRING_MAX - 3;
         private const string THREE_DOTS = "...";
-
-        internal sealed class NonmatchingTypeClass
-        {
-        }
-
-        /// <summary>
-        /// A special value, which is used to indicate that BestCommonType() method
-        /// was unable to find a common type for the specified arguments.
-        /// </summary>
-        public static readonly Type NonmatchingType = typeof( NonmatchingTypeClass );
 
         /// <summary>
         /// Gets the display name for a Type as used by NUnit.
@@ -68,7 +55,7 @@ namespace NUnit.Framework.Internal
                 if (index >= 0) name = name.Substring(0, index);
 
                 index = name.LastIndexOf('.');
-                if (index >= 0) name = name.Substring(index+1);
+                if (index >= 0) name = name.Substring(index + 1);
 
                 var genericArguments = type.GetGenericArguments();
                 var currentArgument = 0;
@@ -108,8 +95,8 @@ namespace NUnit.Framework.Internal
             }
 
             int lastdot = type.FullName.LastIndexOf('.');
-            return lastdot >= 0 
-                ? type.FullName.Substring(lastdot+1)
+            return lastdot >= 0
+                ? type.FullName.Substring(lastdot + 1)
                 : type.FullName;
         }
 
@@ -125,7 +112,7 @@ namespace NUnit.Framework.Internal
             if (arglist == null || arglist.Length == 0)
                 return baseName;
 
-            StringBuilder sb = new StringBuilder( baseName );
+            StringBuilder sb = new StringBuilder(baseName);
 
             sb.Append("(");
             for (int i = 0; i < arglist.Length; i++)
@@ -162,58 +149,53 @@ namespace NUnit.Framework.Internal
         /// Returns the best fit for a common type to be used in
         /// matching actual arguments to a methods Type parameters.
         /// </summary>
-        /// <param name="type1">The first type.</param>
-        /// <param name="type2">The second type.</param>
-        /// <returns>Either type1 or type2, depending on which is more general.</returns>
-        public static Type BestCommonType(Type type1, Type type2)
+        public static bool TryGetBestCommonType(Type type1, Type type2, out Type bestCommonType)
         {
-            if ( type1 == TypeHelper.NonmatchingType ) return TypeHelper.NonmatchingType;
-            if ( type2 == TypeHelper.NonmatchingType ) return TypeHelper.NonmatchingType;
-
-            if (type1 == type2) return type1;
-            if (type1 == null) return type2;
-            if (type2 == null) return type1;
+            if (type1 == type2) { bestCommonType = type1; return true; }
+            if (type1 == null) { bestCommonType = type2; return true; }
+            if (type2 == null) { bestCommonType = type1; return true; }
 
             if (TypeHelper.IsNumeric(type1) && TypeHelper.IsNumeric(type2))
             {
-                if (type1 == typeof(double)) return type1;
-                if (type2 == typeof(double)) return type2;
+                if (type1 == typeof(double)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(double)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(float)) return type1;
-                if (type2 == typeof(float)) return type2;
+                if (type1 == typeof(float)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(float)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(decimal)) return type1;
-                if (type2 == typeof(decimal)) return type2;
+                if (type1 == typeof(decimal)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(decimal)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(UInt64)) return type1;
-                if (type2 == typeof(UInt64)) return type2;
+                if (type1 == typeof(UInt64)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(UInt64)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(Int64)) return type1;
-                if (type2 == typeof(Int64)) return type2;
+                if (type1 == typeof(Int64)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(Int64)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(UInt32)) return type1;
-                if (type2 == typeof(UInt32)) return type2;
+                if (type1 == typeof(UInt32)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(UInt32)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(Int32)) return type1;
-                if (type2 == typeof(Int32)) return type2;
+                if (type1 == typeof(Int32)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(Int32)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(UInt16)) return type1;
-                if (type2 == typeof(UInt16)) return type2;
+                if (type1 == typeof(UInt16)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(UInt16)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(Int16)) return type1;
-                if (type2 == typeof(Int16)) return type2;
+                if (type1 == typeof(Int16)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(Int16)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(byte)) return type1;
-                if (type2 == typeof(byte)) return type2;
+                if (type1 == typeof(byte)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(byte)) { bestCommonType = type2; return true; }
 
-                if (type1 == typeof(sbyte)) return type1;
-                if (type2 == typeof(sbyte)) return type2;
+                if (type1 == typeof(sbyte)) { bestCommonType = type1; return true; }
+                if (type2 == typeof(sbyte)) { bestCommonType = type2; return true; }
             }
 
-            if ( type1.IsAssignableFrom( type2 ) ) return type1;
-            if ( type2.IsAssignableFrom( type1 ) ) return type2;
+            if (type1.IsAssignableFrom(type2)) { bestCommonType = type1; return true; }
+            if (type2.IsAssignableFrom(type1)) { bestCommonType = type2; return true; }
 
-            return TypeHelper.NonmatchingType;
+            bestCommonType = null;
+            return false;
         }
 
         /// <summary>
@@ -226,16 +208,16 @@ namespace NUnit.Framework.Internal
         public static bool IsNumeric(Type type)
         {
             return type == typeof(double) ||
-                    type == typeof(float) ||
-                    type == typeof(decimal) ||
-                    type == typeof(Int64) ||
-                    type == typeof(Int32) ||
-                    type == typeof(Int16) ||
-                    type == typeof(UInt64) ||
-                    type == typeof(UInt32) ||
-                    type == typeof(UInt16) ||
-                    type == typeof(byte) ||
-                    type == typeof(sbyte);
+                   type == typeof(float) ||
+                   type == typeof(decimal) ||
+                   type == typeof(Int64) ||
+                   type == typeof(Int32) ||
+                   type == typeof(Int16) ||
+                   type == typeof(UInt64) ||
+                   type == typeof(UInt32) ||
+                   type == typeof(UInt16) ||
+                   type == typeof(byte) ||
+                   type == typeof(sbyte);
         }
 
         /// <summary>
@@ -244,7 +226,7 @@ namespace NUnit.Framework.Internal
         /// </summary>
         /// <param name="arglist">An array of args to be converted</param>
         /// <param name="parameters">A ParameterInfo[] whose types will be used as targets</param>
-        public static void ConvertArgumentList(object[] arglist, IParameterInfo[] parameters)
+        public static void ConvertArgumentList(object[] arglist, ParameterInfo[] parameters)
         {
             System.Diagnostics.Debug.Assert(arglist.Length <= parameters.Length);
 
@@ -252,29 +234,22 @@ namespace NUnit.Framework.Internal
             {
                 object arg = arglist[i];
 
-#if PORTABLE
-                if (arg != null)
-#else
-                if (arg != null && arg is IConvertible)
-#endif
+                if (arg is IConvertible)
                 {
                     Type argType = arg.GetType();
                     Type targetType = parameters[i].ParameterType;
                     bool convert = false;
 
-                    if (argType != targetType && !argType.IsAssignableFrom(targetType))
+                    if (argType != targetType && IsNumeric(argType) && IsNumeric(targetType))
                     {
-                        if (IsNumeric(argType) && IsNumeric(targetType))
-                        {
-                            if (targetType == typeof(double) || targetType == typeof(float))
-                                convert = arg is int || arg is long || arg is short || arg is byte || arg is sbyte;
+                        if (targetType == typeof(double) || targetType == typeof(float))
+                            convert = arg is int || arg is long || arg is short || arg is byte || arg is sbyte;
+                        else
+                            if (targetType == typeof(long))
+                                convert = arg is int || arg is short || arg is byte || arg is sbyte;
                             else
-                                if (targetType == typeof(long))
-                                    convert = arg is int || arg is short || arg is byte || arg is sbyte;
-                                else
-                                    if (targetType == typeof(short))
-                                        convert = arg is byte || arg is sbyte;
-                        }
+                                if (targetType == typeof(short))
+                                    convert = arg is byte || arg is sbyte;
                     }
 
                     if (convert)
@@ -297,20 +272,6 @@ namespace NUnit.Framework.Internal
         {
             Type[] typeParameters = type.GetGenericArguments();
 
-#if NETCF || PORTABLE
-            Type[] argTypes = arglist.Select(a => a == null ? typeof(object) : a.GetType()).ToArray();
-            if (argTypes.Length != typeParameters.Length || argTypes.Any(at => at.GetTypeInfo().IsGenericType))
-                return false;
-            try
-            {
-                type = type.MakeGenericType(argTypes);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-#endif
-
             foreach (ConstructorInfo ctor in type.GetConstructors())
             {
                 ParameterInfo[] parameters = ctor.GetParameters();
@@ -323,9 +284,16 @@ namespace NUnit.Framework.Internal
                     for (int j = 0; j < arglist.Length; j++)
                     {
                         if (typeParameters[i].IsGenericParameter || parameters[j].ParameterType.Equals(typeParameters[i]))
-                            typeArgs[i] = TypeHelper.BestCommonType(
-                                              typeArgs[i],
-                                              arglist[j].GetType());
+                        {
+                            if (!TypeHelper.TryGetBestCommonType(
+                                typeArgs[i],
+                                arglist[j].GetType(),
+                                out typeArgs[i]))
+                            {
+                                typeArgs[i] = null;
+                                break;
+                            }
+                        }
                     }
 
                     if (typeArgs[i] == null)
@@ -346,48 +314,94 @@ namespace NUnit.Framework.Internal
         }
 
         /// <summary>
-        /// Gets the _values for an enumeration, using Enum.GetTypes
-        /// where available, otherwise through reflection.
+        /// Return the interfaces implemented by a Type.
         /// </summary>
-        /// <param name="enumType"></param>
-        /// <returns></returns>
-        public static Array GetEnumValues(Type enumType)
+        /// <param name="type">The Type to be examined.</param>
+        /// <returns>An array of Types for the interfaces.</returns>
+        public static Type[] GetDeclaredInterfaces(Type type)
         {
-#if NETCF || SILVERLIGHT
-            FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
+            List<Type> interfaces = new List<Type>(type.GetInterfaces());
 
-            Array enumValues = Array.CreateInstance(enumType, fields.Length);
+            if (type.GetTypeInfo().BaseType == typeof(object))
+                return interfaces.ToArray();
 
-            for (int index = 0; index < fields.Length; index++)
-                enumValues.SetValue(fields[index].GetValue(enumType), index);
+            List<Type> baseInterfaces = new List<Type>(type.GetTypeInfo().BaseType.GetInterfaces());
+            List<Type> declaredInterfaces = new List<Type>();
 
-            return enumValues;
-#else
-            return Enum.GetValues(enumType);
-#endif
+            foreach (Type interfaceType in interfaces)
+            {
+                if (!baseInterfaces.Contains(interfaceType))
+                    declaredInterfaces.Add(interfaceType);
+            }
+
+            return declaredInterfaces.ToArray();
         }
 
         /// <summary>
-        /// Gets the ids of the _values for an enumeration, 
-        /// using Enum.GetNames where available, otherwise
-        /// through reflection.
+        /// Return whether or not the given type is a ValueTuple.
         /// </summary>
-        /// <param name="enumType"></param>
-        /// <returns></returns>
-        public static string[] GetEnumNames(Type enumType)
+        /// <param name="type">Type.</param>
+        /// <returns>Whether or not the given type is a ValueTuple.</returns>
+        public static bool IsValueTuple(Type type)
         {
-#if NETCF || SILVERLIGHT
-            FieldInfo[] fields = enumType.GetFields(BindingFlags.Public | BindingFlags.Static);
+            return IsTupleInternal(type, "System.ValueTuple");
+        }
 
-            string[] names = new string[fields.Length];
+        /// <summary>
+        /// Return whether or not the given type is a Tuple.
+        /// </summary>
+        /// <param name="type">Type.</param>
+        /// <returns>Whether or not the given type is a Tuple.</returns>
+        public static bool IsTuple(Type type)
+        {
+            return IsTupleInternal(type, "System.Tuple");
+        }
 
-            for (int index = 0; index < fields.Length; index++)
-                names[index] =  fields[index].Name;
+        private static bool IsTupleInternal(Type type, string tupleName)
+        {
+            string typeName = type.FullName;
 
-            return names;
-#else
-            return Enum.GetNames(enumType);
-#endif
+            if (typeName.EndsWith("[]"))
+                return false;
+
+            string typeNameWithoutGenerics = GetTypeNameWithoutGenerics(typeName);
+            return typeNameWithoutGenerics == tupleName;
+        }
+
+        private static string GetTypeNameWithoutGenerics(string fullTypeName)
+        {
+            int index = fullTypeName.IndexOf('`');
+            return index == -1 ? fullTypeName : fullTypeName.Substring(0, index);
+        }
+
+        /// <summary>
+        /// Determines whether the cast to the given type would succeed.
+        /// If <paramref name="obj"/> is <see langword="null"/> and <typeparamref name="T"/>
+        /// can be <see langword="null"/>, the cast succeeds just like the C# language feature.
+        /// </summary>
+        /// <param name="obj">The object to cast.</param>
+        internal static bool CanCast<T>(object obj)
+        {
+            return obj is T || (obj == null && default(T) == null);
+        }
+
+        /// <summary>
+        /// Casts to a value of the given type if possible.
+        /// If <paramref name="obj"/> is <see langword="null"/> and <typeparamref name="T"/>
+        /// can be <see langword="null"/>, the cast succeeds just like the C# language feature.
+        /// </summary>
+        /// <param name="obj">The object to cast.</param>
+        /// <param name="value">The value of the object, if the cast succeeded.</param>
+        internal static bool TryCast<T>(object obj, out T value)
+        {
+            if (obj is T)
+            {
+                value = (T)obj;
+                return true;
+            }
+
+            value = default(T);
+            return obj == null && default(T) == null;
         }
     }
 }

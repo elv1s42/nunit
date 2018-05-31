@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009-2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace NUnit.TestData.TestCaseSourceAttributeFixture
@@ -32,7 +33,7 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
     {
         #region Test Calling Assert.Ignore
 
-        [TestCaseSource("source")]
+        [TestCaseSource(nameof(source))]
         public void MethodCallsIgnore(int x, int y, int z)
         {
             Assert.Ignore("Ignore this");
@@ -47,7 +48,7 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
 
         #region Test With Ignored TestCaseData
 
-        [TestCaseSource("ignored_source")]
+        [TestCaseSource(nameof(ignored_source))]
         public void MethodWithIgnoredTestCases(int num)
         {
         }
@@ -67,7 +68,7 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
 
         #region Test With Explicit TestCaseData
 
-        [TestCaseSource("explicit_source")]
+        [TestCaseSource(nameof(explicit_source))]
         public void MethodWithExplicitTestCases(int num)
         {
         }
@@ -88,7 +89,7 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
 
         #region Tests Using Instance Members as Source
 
-        [Test, TestCaseSource("InstanceProperty")]
+        [Test, TestCaseSource(nameof(InstanceProperty))]
         public void MethodWithInstancePropertyAsSource(string source)
         {
             Assert.AreEqual("InstanceProperty", source);
@@ -99,7 +100,7 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
             get { return new object[] { new object[] { "InstanceProperty" } }; }
         }
 
-        [Test, TestCaseSource("InstanceMethod")]
+        [Test, TestCaseSource(nameof(InstanceMethod))]
         public void MethodWithInstanceMethodAsSource(string source)
         {
             Assert.AreEqual("InstanceMethod", source);
@@ -110,33 +111,45 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
             return new object[] { new object[] { "InstanceMethod" } };
         }
 
-        [Test, TestCaseSource("InstanceField")]
+        [Test, TestCaseSource(nameof(InstanceField))]
         public void MethodWithInstanceFieldAsSource(string source)
         {
             Assert.AreEqual("InstanceField", source);
         }
 
+#pragma warning disable 414
         object[] InstanceField = { new object[] { "InstanceField" } };
+#pragma warning restore 414
 
         #endregion
 
-        [Test, TestCaseSource(typeof(DivideDataProvider), "MyField", new object[] { 100, 4, 25 })]
+        [Test, TestCaseSource(typeof(DivideDataProvider), nameof(DivideDataProvider.MyField), new object[] { 100, 4, 25 })]
         public void SourceInAnotherClassPassingParamsToField(int n, int d, int q)
         {
         }
 
-        [Test, TestCaseSource(typeof(DivideDataProvider), "MyProperty", new object[] { 100, 4, 25 })]
+        [Test, TestCaseSource(typeof(DivideDataProvider), nameof(DivideDataProvider.MyProperty), new object[] { 100, 4, 25 })]
         public void SourceInAnotherClassPassingParamsToProperty(int n, int d, int q)
         {
         }
 
-        [Test, TestCaseSource(typeof(DivideDataProvider), "HereIsTheDataWithParameters", new object[] { 100, 4 })]
+        [Test, TestCaseSource(typeof(DivideDataProvider), nameof(DivideDataProvider.HereIsTheDataWithParameters), new object[] { 100, 4 })]
         public void SourceInAnotherClassPassingSomeDataToConstructorWrongNumberParam(int n, int d, int q)
         {
         }
 
-        [TestCaseSource("exception_source")]
+        [TestCaseSource(nameof(exception_source))]
         public void MethodWithSourceThrowingException(string lhs, string rhs)
+        {
+        }
+
+        [TestCaseSource("NonExistingSource")]
+        public void MethodWithNonExistingSource(object param)
+        {
+        }
+
+        [TestCaseSource(nameof(ComplexArrayBasedTestInputTestCases))]
+        public void MethodWithArrayArguments(object o)
         {
         }
 
@@ -170,6 +183,21 @@ namespace NUnit.TestData.TestCaseSourceAttributeFixture
                     yield return new object[] { 100, 4, 25 };
                 }
             }
+        }
+
+        static object[] ComplexArrayBasedTestInput = new[]
+        {
+            new object[] { 1, "text", new object() },
+            new object[0],
+            new object[] { 1, new int[] { 2, 3 }, 4 },
+            new object[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+            new object[] { new byte[,] { { 1, 2 }, { 2, 3 } } }
+        };
+
+        static IEnumerable<TestCaseData> ComplexArrayBasedTestInputTestCases()
+        {
+            foreach (var argumentValue in ComplexArrayBasedTestInput)
+                yield return new TestCaseData(args: new object[] { argumentValue });
         }
     }
 }

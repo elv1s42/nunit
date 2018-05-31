@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,8 +33,8 @@ namespace NUnit.Framework.Internal.Commands
     /// </summary>
     public class SetUpTearDownItem
     {
-        private IList<MethodInfo> _setUpMethods;
-        private IList<MethodInfo> _tearDownMethods;
+        private readonly IList<MethodInfo> _setUpMethods;
+        private readonly IList<MethodInfo> _tearDownMethods;
         private bool _setUpWasRun;
 
         /// <summary>
@@ -80,11 +80,19 @@ namespace NUnit.Framework.Internal.Commands
             if (_setUpWasRun)
                 try
                 {
+                    // Count of assertion results so far
+                    var oldCount = context.CurrentResult.AssertionResults.Count;
+
                     // Even though we are only running one level at a time, we
                     // run the teardowns in reverse order to provide consistency.
                     int index = _tearDownMethods.Count;
                     while (--index >= 0)
                         RunSetUpOrTearDownMethod(context, _tearDownMethods[index]);
+
+                    // If there are new assertion results here, they are warnings issued
+                    // in teardown. Redo test completion so they are listed properly.
+                    if (context.CurrentResult.AssertionResults.Count > oldCount)
+                        context.CurrentResult.RecordTestCompletion();
                 }
                 catch (Exception ex)
                 {
@@ -92,24 +100,18 @@ namespace NUnit.Framework.Internal.Commands
                 }
         }
 
-        private void RunSetUpOrTearDownMethod(TestExecutionContext context, MethodInfo method)
+        private static void RunSetUpOrTearDownMethod(TestExecutionContext context, MethodInfo method)
         {
-#if NET_4_0 || NET_4_5 || PORTABLE
-            if (AsyncInvocationRegion.IsAsyncOperation(method))
-                RunAsyncMethod(method, context);
+            Guard.ArgumentNotAsyncVoid(method, nameof(method));
+#if ASYNC
+            if (AsyncToSyncAdapter.IsAsyncOperation(method))
+                AsyncToSyncAdapter.Await(() => InvokeMethod(method, context));
             else
 #endif
-                RunNonAsyncMethod(method, context);
+                InvokeMethod(method, context);
         }
 
-#if NET_4_0 || NET_4_5 || PORTABLE
-        private void RunAsyncMethod(MethodInfo method, TestExecutionContext context)
-        {
-            using (AsyncInvocationRegion region = AsyncInvocationRegion.Create(method))
-                region.WaitForPendingOperationsToComplete(RunNonAsyncMethod(method, context));
-        }
-#endif
-        private object RunNonAsyncMethod(MethodInfo method, TestExecutionContext context)
+        private static object InvokeMethod(MethodInfo method, TestExecutionContext context)
         {
             return Reflect.InvokeMethod(method, method.IsStatic ? null : context.TestObject);
         }

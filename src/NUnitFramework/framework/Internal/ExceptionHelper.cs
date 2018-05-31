@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2010 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -34,7 +34,7 @@ namespace NUnit.Framework.Internal
     /// </summary>
     public class ExceptionHelper
     {
-#if !NET_4_5 && !PORTABLE && !SILVERLIGHT && !NETCF
+#if NET20 || NET35 || NET40
         private static readonly Action<Exception> PreserveStackTrace;
 
         static ExceptionHelper()
@@ -54,38 +54,44 @@ namespace NUnit.Framework.Internal
         }
 #endif
 
-#if !NETCF && !SILVERLIGHT
         /// <summary>
         /// Rethrows an exception, preserving its stack trace
         /// </summary>
         /// <param name="exception">The exception to rethrow</param>
         public static void Rethrow(Exception exception)
         {
-#if NET_4_5 || PORTABLE
-            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
-#else
+#if NET20 || NET35 || NET40
             PreserveStackTrace(exception);
             throw exception;
+#else
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception).Throw();
 #endif
         }
-#endif
 
-        // TODO: Move to a utility class
         /// <summary>
         /// Builds up a message, using the Message field of the specified exception
-        /// as well as any InnerExceptions.
+        /// as well as any InnerExceptions. Optionally excludes exception names, 
+        /// creating a more readable message.
         /// </summary>
         /// <param name="exception">The exception.</param>
+        /// <param name="excludeExceptionNames">Flag indicating whether exception names should be excluded.</param>
         /// <returns>A combined message string.</returns>
-        public static string BuildMessage(Exception exception)
+        public static string BuildMessage(Exception exception, bool excludeExceptionNames=false)
         {
+            Guard.ArgumentNotNull(exception, nameof(exception));
+
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat(CultureInfo.CurrentCulture, "{0} : {1}", exception.GetType().ToString(), exception.Message);
+            if (!excludeExceptionNames)
+                sb.AppendFormat("{0} : ", exception.GetType());
+            sb.Append(GetExceptionMessage(exception));
 
             foreach (Exception inner in FlattenExceptionHierarchy(exception))
             {
-                sb.Append(NUnit.Env.NewLine);
-                sb.AppendFormat(CultureInfo.CurrentCulture, "  ----> {0} : {1}", inner.GetType().ToString(), inner.Message);
+                sb.Append(Environment.NewLine);
+                sb.Append("  ----> ");
+                if (!excludeExceptionNames)
+                    sb.AppendFormat("{0} : ", inner.GetType());
+                sb.Append(GetExceptionMessage(inner));
             }
 
             return sb.ToString();
@@ -99,26 +105,27 @@ namespace NUnit.Framework.Internal
         /// <returns>A combined stack trace.</returns>
         public static string BuildStackTrace(Exception exception)
         {
-            StringBuilder sb = new StringBuilder(GetStackTrace(exception));
+            StringBuilder sb = new StringBuilder(GetSafeStackTrace(exception));
 
             foreach (Exception inner in FlattenExceptionHierarchy(exception))
             {
-                sb.Append(NUnit.Env.NewLine);
+                sb.Append(Environment.NewLine);
                 sb.Append("--");
                 sb.Append(inner.GetType().Name);
-                sb.Append(NUnit.Env.NewLine);
-                sb.Append(GetStackTrace(inner));
+                sb.Append(Environment.NewLine);
+                sb.Append(GetSafeStackTrace(inner));
             }
 
             return sb.ToString();
         }
 
         /// <summary>
-        /// Gets the stack trace of the exception.
+        /// Gets the stack trace of the exception. If no stack trace
+        /// is provided, returns "No stack trace available".
         /// </summary>
         /// <param name="exception">The exception.</param>
         /// <returns>A string representation of the stack trace.</returns>
-        public static string GetStackTrace(Exception exception)
+        private static string GetSafeStackTrace(Exception exception)
         {
             try
             {
@@ -130,11 +137,33 @@ namespace NUnit.Framework.Internal
             }
         }
 
+        private static string GetExceptionMessage(Exception ex)
+        {
+            if (string.IsNullOrEmpty(ex.Message))
+            {
+                // Special handling for Mono 5.0, which returns an empty message
+                var fnfEx = ex as System.IO.FileNotFoundException;
+                return fnfEx != null
+                    ? "Could not load assembly. File not found: " + fnfEx.FileName
+                    : "No message provided";
+            }
+
+            return ex.Message;
+        }
+
         private static List<Exception> FlattenExceptionHierarchy(Exception exception)
         {
             var result = new List<Exception>();
 
-#if NET_4_0 || NET_4_5 || SILVERLIGHT || PORTABLE
+            if (exception is ReflectionTypeLoadException)
+            {
+                var reflectionException = exception as ReflectionTypeLoadException;
+                result.AddRange(reflectionException.LoaderExceptions);
+
+                foreach (var innerException in reflectionException.LoaderExceptions)
+                    result.AddRange(FlattenExceptionHierarchy(innerException));
+            }
+#if ASYNC
             if (exception is AggregateException)
             {
                 var aggregateException = (exception as AggregateException);

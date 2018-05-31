@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2012-2014 Charlie Poole
+// Copyright (c) 2012-2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,6 +29,12 @@ using System.Threading;
 namespace NUnit.Framework.Internal.Execution
 {
     /// <summary>
+    /// Handler for ShiftChange events.
+    /// </summary>
+    /// <param name="shift">The shift that is starting or ending.</param>
+    public delegate void ShiftChangeEventHandler(WorkShift shift);
+
+    /// <summary>
     /// The dispatcher needs to do different things at different,
     /// non-overlapped times. For example, non-parallel tests may
     /// not be run at the same time as parallel tests. We model
@@ -45,24 +51,18 @@ namespace NUnit.Framework.Internal.Execution
     /// </summary>
     public class WorkShift
     {
-        private static Logger log = InternalTrace.GetLogger("WorkShift");
+        private static readonly Logger log = InternalTrace.GetLogger("WorkShift");
 
-        private object _syncRoot = new object();
+        private readonly object _syncRoot = new object();
         private int _busyCount = 0;
-
-        // Shift name - used for logging
-        private string _name;
 
         /// <summary>
         /// Construct a WorkShift
         /// </summary>
         public WorkShift(string name)
         {
-            _name = name;
-
-            this.IsActive = false;
-            this.Queues = new List<WorkItemQueue>();
-            this.Workers = new List<TestWorker>();
+            Name = name;
+            IsActive = false;
         }
 
         #region Public Events and Properties
@@ -70,23 +70,17 @@ namespace NUnit.Framework.Internal.Execution
         /// <summary>
         /// Event that fires when the shift has ended
         /// </summary>
-        public event EventHandler EndOfShift;
+        public event ShiftChangeEventHandler EndOfShift;
+        
+        /// <summary>
+        /// The Name of this shift
+        /// </summary>
+        public string Name { get; }
 
         /// <summary>
         /// Gets a flag indicating whether the shift is currently active
         /// </summary>
         public bool IsActive { get; private set; }
-
-        /// <summary>
-        /// Gets a list of the queues associated with this shift.
-        /// </summary>
-        /// <remarks>Used for testing</remarks>
-        public IList<WorkItemQueue> Queues { get; private set; }
-
-        /// <summary>
-        /// Gets the list of workers associated with this shift.
-        /// </summary>
-        public IList<TestWorker> Workers { get; private set; }
 
         /// <summary>
         /// Gets a bool indicating whether this shift has any work to do
@@ -105,6 +99,22 @@ namespace NUnit.Framework.Internal.Execution
 
         #endregion
 
+        #region Internal Properties
+
+        /// <summary>
+        /// Gets a list of the queues associated with this shift.
+        /// </summary>
+        /// <remarks>Internal for testing - immutable once initialized</remarks>
+        internal IList<WorkItemQueue> Queues { get; } = new List<WorkItemQueue>();
+
+        /// <summary>
+        /// Gets the list of workers associated with this shift.
+        /// </summary>
+        /// <remarks>Internal for testing - immutable once initialized</remarks>
+        internal IList<TestWorker> Workers { get; } = new List<TestWorker>();
+
+        #endregion
+
         #region Public Methods
 
         /// <summary>
@@ -113,11 +123,11 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void AddQueue(WorkItemQueue queue)
         {
-            log.Debug("{0} shift adding queue {1}", _name, queue.Name);
+            log.Debug("{0} shift adding queue {1}", Name, queue.Name);
 
             Queues.Add(queue);
 
-            if (this.IsActive)
+            if (IsActive)
                 queue.Start();
         }
 
@@ -127,37 +137,55 @@ namespace NUnit.Framework.Internal.Execution
         /// <param name="worker"></param>
         public void Assign(TestWorker worker)
         {
-            log.Debug("{0} shift assigned worker {1}", _name, worker.Name);
+            log.Debug("{0} shift assigned worker {1}", Name, worker.Name);
 
             Workers.Add(worker);
-
-            worker.Busy += (s, ea) => Interlocked.Increment(ref _busyCount);
-            worker.Idle += (s, ea) =>
-            {
-                // Quick check first using Interlocked.Decrement
-                if (Interlocked.Decrement(ref _busyCount) == 0)
-                    lock (_syncRoot)
-                    {
-                        // Check busy count again under the lock
-                        if (_busyCount == 0 && !HasWork)
-                            this.EndShift();
-                    }
-            };
-
-            worker.Start();
         }
+
+        bool _firstStart = true;
 
         /// <summary>
         /// Start or restart processing for the shift
         /// </summary>
         public void Start()
         {
-            log.Info("{0} shift starting", _name);
+            log.Info("{0} shift starting", Name);
 
-            this.IsActive = true;
+            IsActive = true;
+
+            if (_firstStart)
+                StartWorkers();
 
             foreach (var q in Queues)
                 q.Start();
+
+            _firstStart = false;
+        }
+    
+        private void StartWorkers()
+        {
+            foreach (var worker in Workers)
+            {
+                worker.Busy += (s, ea) => Interlocked.Increment(ref _busyCount);
+                worker.Idle += (s, ea) =>
+                {
+                    // Quick check first using Interlocked.Decrement
+                    if (Interlocked.Decrement(ref _busyCount) == 0 && !HasWork)
+                    {
+                        lock (_syncRoot)
+                        {
+                            // Check again under the lock. If there is no work
+                            // we can end the shift.
+                            if (_busyCount == 0 && !HasWork)
+                            {
+                                EndShift();
+                            }
+                        }
+                    }
+                };
+
+                worker.Start();
+            }
         }
 
         /// <summary>
@@ -166,17 +194,16 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void EndShift()
         {
-            log.Info("{0} shift ending", _name);
+            log.Info("{0} shift ending", Name);
 
-            this.IsActive = false;
+            IsActive = false;
 
-            // Pause all queues
+            // Pause all queues for this shift
             foreach (var q in Queues)
                 q.Pause();
 
             // Signal the dispatcher that shift ended
-            if (EndOfShift != null)
-                EndOfShift(this, EventArgs.Empty);
+            EndOfShift?.Invoke(this);
         }
 
         /// <summary>
@@ -184,7 +211,7 @@ namespace NUnit.Framework.Internal.Execution
         /// </summary>
         public void ShutDown()
         {
-            this.IsActive = false;
+            IsActive = false;
 
             foreach (var q in Queues)
                 q.Stop();
@@ -197,7 +224,7 @@ namespace NUnit.Framework.Internal.Execution
         public void Cancel(bool force)
         {
             if (force)
-                this.IsActive = false;
+                IsActive = false;
 
             foreach (var w in Workers)
                 w.Cancel(force);

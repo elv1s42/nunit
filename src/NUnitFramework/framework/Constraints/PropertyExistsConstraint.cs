@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -23,7 +23,7 @@
 
 using System;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
 {
@@ -67,13 +67,13 @@ namespace NUnit.Framework.Constraints
         /// <returns>True for success, false for failure</returns>
         public override ConstraintResult ApplyTo<TActual>(TActual actual)
         {
-            Guard.ArgumentNotNull(actual, "actual");
+            Guard.ArgumentNotNull(actual, nameof(actual));
 
             actualType = actual as Type;
             if (actualType == null)
                 actualType = actual.GetType();
 
-            PropertyInfo property = actualType.GetProperty(name,
+            PropertyInfo property = Reflect.GetUltimateShadowingProperty(actualType, name,
                 BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             return new ConstraintResult(this, actualType, property != null);
         }

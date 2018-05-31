@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -48,6 +48,11 @@ namespace NUnit.TestData.TheoryFixture
         }
 
         [Theory]
+        public void TestWithUnsupportedNullableTypeArgumentWithNoDataPoints(decimal? x)
+        {
+        }
+
+        [Theory]
         public void TheoryWithArgumentsAndDatapoints(int x, int y)
         {
         }
@@ -64,7 +69,17 @@ namespace NUnit.TestData.TheoryFixture
         }
 
         [Theory]
+        public void TestWithNullableBooleanArguments(bool? a, bool? b)
+        {
+        }
+
+        [Theory]
         public void TestWithEnumAsArgument(System.AttributeTargets targets)
+        {
+        }
+
+        [Theory]
+        public void TestWithNullableEnumAsArgument(System.AttributeTargets? targets)
         {
         }
 

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -21,8 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-using System;
-using System.Collections;
 using NUnit.Framework.Constraints;
 
 namespace NUnit.Framework
@@ -31,18 +29,17 @@ namespace NUnit.Framework
     /// Helper class with properties and methods that supply
     /// a number of constraints used in Asserts.
     /// </summary>
-    public class Contains
+    // Abstract because we support syntax extension by inheriting and declaring new static members.
+    public abstract class Contains
     {
         #region Item
 
         /// <summary>
-        /// Returns a new CollectionContainsConstraint checking for the
+        /// Returns a new <see cref="SomeItemsConstraint"/> checking for the
         /// presence of a particular object in the collection.
         /// </summary>
-        public static CollectionContainsConstraint Item(object expected)
-        {
-            return new CollectionContainsConstraint(expected);
-        }
+        public static SomeItemsConstraint Item(object expected) =>
+            new SomeItemsConstraint(new EqualConstraint(expected));
 
         #endregion
 
@@ -80,7 +77,7 @@ namespace NUnit.Framework
         /// </summary>
         public static SubstringConstraint Substring(string expected)
         {
-            return new SubstringConstraint(expected);;
+            return new SubstringConstraint(expected);
         }
 
         #endregion

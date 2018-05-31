@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2010 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2010 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Collections.Generic;
 
 namespace NUnit.Framework.Interfaces
 {
@@ -89,10 +90,8 @@ namespace NUnit.Framework.Interfaces
         }
 
         /// <summary>
-        /// Gets any stacktrace associated with an
-        /// error or failure. Not available in
-        /// the Compact Framework 1.0.
-        /// </summary>
+        /// Gets any stack trace associated with an
+        /// error or failure.</summary>
         string StackTrace
         {
             get;
@@ -113,6 +112,15 @@ namespace NUnit.Framework.Interfaces
         /// when running the test and all its children.
         /// </summary>
         int FailCount
+        {
+            get;
+        }
+
+        /// <summary>
+        /// Gets the number of test cases that had warnings
+        /// when running the test and all its children.
+        /// </summary>
+        int WarningCount
         {
             get;
         }
@@ -155,9 +163,9 @@ namespace NUnit.Framework.Interfaces
         }
 
         /// <summary>
-        /// Gets the the collection of child results.
+        /// Gets the collection of child results.
         /// </summary>
-        System.Collections.Generic.IList<ITestResult> Children
+        IEnumerable<ITestResult> Children
         {
             get;
         }
@@ -174,6 +182,22 @@ namespace NUnit.Framework.Interfaces
         /// Gets any text output written to this result.
         /// </summary>
         string Output
+        {
+            get;
+        }
+
+        /// <summary>
+        /// Gets a list of AssertionResults associated with the test
+        /// </summary>
+        IList<AssertionResult> AssertionResults
+        {
+            get;
+        }
+
+        /// <summary>
+        /// Gets the collection of files attached to the test
+        /// </summary>
+        ICollection<TestAttachment> TestAttachments
         {
             get;
         }

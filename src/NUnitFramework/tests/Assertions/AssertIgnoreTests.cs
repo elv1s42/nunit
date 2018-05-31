@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Linq;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.TestData.AssertIgnoreData;
@@ -73,7 +74,7 @@ namespace NUnit.Framework.Assertions
         {
             TestSuite suite = new TestSuite("IgnoredTestFixture");
             suite.Add( TestBuilder.MakeFixture( typeof( IgnoredTestSuiteFixture ) ) );
-            ITestResult fixtureResult = TestBuilder.RunTest(suite).Children[0];
+            ITestResult fixtureResult = TestBuilder.RunTest(suite).Children.ToArray ()[0];
 
             Assert.AreEqual(ResultState.Ignored.WithSite(FailureSite.SetUp), fixtureResult.ResultState);
 

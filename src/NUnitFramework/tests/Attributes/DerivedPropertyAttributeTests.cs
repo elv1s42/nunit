@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,15 +33,15 @@ namespace NUnit.Framework.Attributes
         [TestCase(typeof(LevelOfParallelismAttribute), PropertyNames.LevelOfParallelism, 7)]
         [TestCase(typeof(MaxTimeAttribute), PropertyNames.MaxTime, 50)]
         [TestCase(typeof(ParallelizableAttribute), PropertyNames.ParallelScope, ParallelScope.Fixtures)]
-#if !NETCF && !PORTABLE
+#if !NETCOREAPP1_1
         [TestCase(typeof(SetCultureAttribute), PropertyNames.SetCulture, "fr-FR")]
         [TestCase(typeof(SetUICultureAttribute), PropertyNames.SetUICulture, "fr-FR")]
-#if !SILVERLIGHT
+#endif
+#if APARTMENT_STATE
         [TestCase(typeof(ApartmentAttribute), PropertyNames.ApartmentState, ApartmentState.MTA)]
         [TestCase(typeof(ApartmentAttribute), PropertyNames.ApartmentState, ApartmentState.STA)]
 #endif
-#endif
-#if !SILVERLIGHT && !PORTABLE
+#if THREAD_ABORT
         [TestCase(typeof(TimeoutAttribute), PropertyNames.Timeout, 50)]
 #endif
         public void ConstructWithOneArg<T>(Type attrType, string propName, T propValue)
@@ -52,7 +52,7 @@ namespace NUnit.Framework.Attributes
         }
 
         [TestCase(typeof(ParallelizableAttribute), PropertyNames.ParallelScope, ParallelScope.Self)]
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
         [TestCase(typeof(RequiresThreadAttribute), PropertyNames.RequiresThread, true)]
 #endif
         public void ConstructWithNoArgs<T>(Type attrType, string propName, T propValue)

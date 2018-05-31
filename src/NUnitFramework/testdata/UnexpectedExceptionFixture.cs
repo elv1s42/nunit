@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -43,7 +43,7 @@ namespace NUnit.TestData.UnexpectedExceptionFixture
                     new Exception("Inner Inner Exception")));
         }
 
-#if NET_4_0 || NET_4_5 || SILVERLIGHT || PORTABLE
+#if ASYNC
         [Test]
         public void ThrowsWithAggregateException()
         {

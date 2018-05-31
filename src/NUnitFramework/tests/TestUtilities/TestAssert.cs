@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System;
+using System.Linq;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
@@ -57,7 +58,7 @@ namespace NUnit.TestUtilities
             object testObject = Reflect.Construct(type);
             ITestResult result = TestBuilder.RunTest(test, testObject);
             if (result.HasChildren) // In case it's a parameterized method
-                result = result.Children[0];
+                result = result.Children.ToArray()[0];
             Assert.That(result.ResultState, Is.EqualTo(resultState));
         }
         #endregion
@@ -80,7 +81,7 @@ namespace NUnit.TestUtilities
 
         public static void IsNotRunnable(Type type, string name)
         {
-            IsNotRunnable(TestBuilder.MakeTestCase(type, name));
+            IsNotRunnable(TestBuilder.MakeTestFromMethod(type, name));
         }
 
         public static void ChildNotRunnable(Type type, string name)

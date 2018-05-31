@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,10 +21,9 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
 namespace NUnit.Framework.Syntax
 {
-#if !NETCF
     [TestFixture]
     public class BinarySerializableTest : SyntaxTest
     {
@@ -36,7 +35,6 @@ namespace NUnit.Framework.Syntax
             builderSyntax = Builder().BinarySerializable;
         }
     }
-#endif
 
     [TestFixture]
     public class XmlSerializableTest : SyntaxTest

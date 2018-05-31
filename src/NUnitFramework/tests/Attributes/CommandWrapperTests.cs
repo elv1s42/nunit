@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -29,7 +29,7 @@ using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Commands;
 using NUnit.TestUtilities;
 
-namespace NUnit.Framework.Attributes.Tests
+namespace NUnit.Framework.Attributes
 {
     public class CommandWrapperTests
     {
@@ -79,7 +79,7 @@ namespace NUnit.Framework.Attributes.Tests
         [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
         private class ExpectedExceptionAttribute : NUnitAttribute, IWrapTestMethod
         {
-            private Type _expectedExceptionType;
+            private readonly Type _expectedExceptionType;
 
             public ExpectedExceptionAttribute(Type type)
             {
@@ -93,7 +93,7 @@ namespace NUnit.Framework.Attributes.Tests
 
             private class ExpectedExceptionCommand : DelegatingTestCommand
             {
-                private Type _expectedType;
+                private readonly Type _expectedType;
 
                 public ExpectedExceptionCommand(TestCommand innerCommand, Type expectedType)
                     : base(innerCommand)

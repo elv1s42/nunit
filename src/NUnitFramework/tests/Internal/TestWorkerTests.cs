@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -36,12 +36,12 @@ namespace NUnit.Framework.Internal.Execution
         [SetUp]
         public void SetUp()
         {
-            _queue = new WorkItemQueue("TestQ");
-#if NETCF
-            _worker = new TestWorker(_queue, "TestQ_Worker");
+#if APARTMENT_STATE
+            _queue = new WorkItemQueue("TestQ", true, ApartmentState.MTA);
 #else
-            _worker = new TestWorker(_queue, "TestQ_Worker", ApartmentState.MTA);
+            _queue = new WorkItemQueue("TestQ", true);
 #endif
+            _worker = new TestWorker(_queue, "TestQ_Worker");
         }
 
         [TearDown]
@@ -64,7 +64,8 @@ namespace NUnit.Framework.Internal.Execution
             _worker.Start();
             _queue.Start();
 
-            Assert.That(() => sb.ToString(), Is.EqualTo("BusyExecIdle").After(200));
+            Assert.That(() => sb.ToString(), Is.EqualTo("BusyExecIdle").After(
+                delayInMilliseconds: 10000, pollingInterval: 200));
         }
 
         private void FakeMethod()

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -33,9 +33,7 @@ namespace NUnit.Framework.Internal.Filters
     /// CategoryFilter is able to select or exclude tests
     /// based on their categories.
     /// </summary>
-    /// 
-    [Serializable]
-    public class CategoryFilter : ValueMatchFilter
+    internal class CategoryFilter : ValueMatchFilter
     {
         /// <summary>
         /// Construct a CategoryFilter using a single category name

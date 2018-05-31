@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,13 +24,14 @@
 using System.Collections;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
+using System;
 
 namespace NUnit.TestData.TestFixtureSourceData
 {
     public abstract class TestFixtureSourceTest
     {
-        private string Arg;
-        private string Expected;
+        private readonly string Arg;
+        private readonly string Expected;
 
         public TestFixtureSourceTest(string arg, string expected)
         {
@@ -47,9 +48,9 @@ namespace NUnit.TestData.TestFixtureSourceData
 
     public abstract class TestFixtureSourceDivideTest
     {
-        private int X;
-        private int Y;
-        private int Z;
+        private readonly int X;
+        private readonly int Y;
+        private readonly int Z;
 
         public TestFixtureSourceDivideTest(int x, int y, int z)
         {
@@ -70,7 +71,9 @@ namespace NUnit.TestData.TestFixtureSourceData
     {
         public StaticField_SameClass(string arg) : base(arg, "StaticFieldInClass") { }
 
+#pragma warning disable 414
         static object[] StaticField = new object[] { "StaticFieldInClass" };
+#pragma warning restore 414
     }
 
     [TestFixtureSource("StaticProperty")]
@@ -108,7 +111,9 @@ namespace NUnit.TestData.TestFixtureSourceData
     {
         public InstanceField_SameClass(string arg) : base(arg, "InstanceFieldInClass") { }
 
+#pragma warning disable 414
         object[] InstanceField = new object[] { "InstanceFieldInClass" };
+#pragma warning restore 414
     }
 
     [TestFixtureSource("InstanceProperty")]
@@ -212,9 +217,11 @@ namespace NUnit.TestData.TestFixtureSourceData
             yield return new object[] { 12, 6, 2 };
         }
 
+#pragma warning disable 414
         static object[] MoreData = new object[] {
             new object[] { 12, 1, 12 },
             new object[] { 12, 2, 6 } };
+#pragma warning restore 414
     }
 
     [TestFixtureSource("IgnoredData")]
@@ -299,6 +306,26 @@ namespace NUnit.TestData.TestFixtureSourceData
         }
     }
 
+    public class GenericFixtureSource
+    {
+        public static readonly Type[] Source = new Type[]
+        {
+            typeof(short),
+            typeof(int),
+            typeof(long)
+        };
+    }
+
+    [TestFixtureSource(typeof(GenericFixtureSource), "Source")]
+    public class GenericFixtureSourceWithProperArgsProvided<T>
+    {
+        [Test]
+        public void SomeTest()
+        {
+        }
+    }
+
+
     #region Source Data Classes
 
     class SourceData_IEnumerable : IEnumerable
@@ -320,7 +347,9 @@ namespace NUnit.TestData.TestFixtureSourceData
             get { return new object[] { new object[] { "StaticProperty" } }; }
         }
 
+#pragma warning disable 414
         static object[] StaticField = new object[] { "StaticField" };
+#pragma warning restore 414
 
         static object[] StaticProperty
         {
@@ -334,4 +363,34 @@ namespace NUnit.TestData.TestFixtureSourceData
     }
 
     #endregion
+}
+
+[TestFixtureSource("MyData")]
+public class NoNamespaceTestFixtureSourceWithTwoValues
+{
+    public NoNamespaceTestFixtureSourceWithTwoValues(int i) { }
+
+    [Test]
+    public void Test()
+    {
+    }
+
+#pragma warning disable 414
+    static object[] MyData = { 1, 2 };
+#pragma warning restore 414
+}
+
+[TestFixtureSource("MyData")]
+public class NoNamespaceTestFixtureSourceWithSingleValue
+{
+    public NoNamespaceTestFixtureSourceWithSingleValue(int i) { }
+
+    [Test]
+    public void Test()
+    {
+    }
+
+#pragma warning disable 414
+    static object[] MyData = { 1 };
+#pragma warning restore 414
 }

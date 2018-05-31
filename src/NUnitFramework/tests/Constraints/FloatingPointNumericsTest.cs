@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -47,7 +47,7 @@ namespace NUnit.Framework.Constraints
             Assert.IsFalse(
                 FloatingPointNumerics.AreAlmostEqualUlps(1000000.00f, 1000000.13f, 1)
             );
-            Assert.IsFalse( // Ensure we don't overflow on twos compelment values
+            Assert.IsFalse( // Ensure we don't overflow on twos complement values
                 FloatingPointNumerics.AreAlmostEqualUlps(2.0f, -2.0f, 1)
             );
         }
@@ -73,57 +73,5 @@ namespace NUnit.Framework.Constraints
                 FloatingPointNumerics.AreAlmostEqualUlps(2.0, -2.0, 1)
             );
         }
-
-        /// <summary>Tests the integer reinterpretation functions</summary>
-        [Test]
-        public void MirroredIntegerReinterpretation()
-        {
-            Assert.AreEqual(
-                12345.0f,
-                FloatingPointNumerics.ReinterpretAsFloat(
-                    FloatingPointNumerics.ReinterpretAsInt(12345.0f)
-                )
-            );
-        }
-
-        /// <summary>Tests the long reinterpretation functions</summary>
-        [Test]
-        public void MirroredLongReinterpretation()
-        {
-            Assert.AreEqual(
-                12345.67890,
-                FloatingPointNumerics.ReinterpretAsDouble(
-                    FloatingPointNumerics.ReinterpretAsLong(12345.67890)
-                )
-            );
-        }
-
-        /// <summary>Tests the floating point reinterpretation functions</summary>
-        [Test]
-        public void MirroredFloatReinterpretation()
-        {
-            Assert.AreEqual(
-                12345,
-                FloatingPointNumerics.ReinterpretAsInt(
-                    FloatingPointNumerics.ReinterpretAsFloat(12345)
-                )
-            );
-        }
-
-
-        /// <summary>
-        ///   Tests the double prevision floating point reinterpretation functions
-        /// </summary>
-        [Test]
-        public void MirroredDoubleReinterpretation()
-        {
-            Assert.AreEqual(
-                1234567890,
-                FloatingPointNumerics.ReinterpretAsLong(
-                    FloatingPointNumerics.ReinterpretAsDouble(1234567890)
-                )
-            );
-        }
-
-  }
+    }
 }

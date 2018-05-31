@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,12 +21,12 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-#if NET_4_0
+#if NET40
 using Task = System.Threading.Tasks.TaskEx;
 #endif
 
@@ -42,7 +42,7 @@ namespace NUnit.TestData
             Assert.AreEqual(1, result);
         }
 
-        #region async Task
+#region async Task
 
         [Test]
         public async System.Threading.Tasks.Task AsyncTaskSuccess()
@@ -68,9 +68,9 @@ namespace NUnit.TestData
             Assert.Fail("Should never get here");
         }
 
-        #endregion
+#endregion
 
-        #region non-async Task
+#region non-async Task
 
         [Test]
         public System.Threading.Tasks.Task TaskSuccess()
@@ -90,7 +90,7 @@ namespace NUnit.TestData
             throw new InvalidOperationException();
         }
 
-        #endregion
+#endregion
 
 
         [Test]
@@ -105,7 +105,7 @@ namespace NUnit.TestData
             return ReturnOne();
         }
 
-        #region async Task<T>
+#region async Task<T>
 
         [TestCase(ExpectedResult = 1)]
         public async Task<int> AsyncTaskResultCheckSuccess()
@@ -125,10 +125,10 @@ namespace NUnit.TestData
             return await ThrowException();
         }
 
-        #endregion
+#endregion
 
 
-        #region non-async Task<T>
+#region non-async Task<T>
 
         [TestCase(ExpectedResult = 1)]
         public Task<int> TaskResultCheckSuccess()
@@ -148,7 +148,7 @@ namespace NUnit.TestData
             return ThrowException();
         }
 
-        #endregion
+#endregion
 
         [TestCase(1, 2)]
         public async System.Threading.Tasks.Task AsyncTaskTestCaseWithParametersSuccess(int a, int b)

@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009-2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,7 +25,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using NUnit.Framework.Compatibility;
+using System.Linq;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
@@ -38,7 +39,7 @@ namespace NUnit.Framework.Attributes
     {
         [Test]
         public void ValueSourceCanBeStaticProperty(
-            [ValueSource("StaticProperty")] string source)
+            [ValueSource(nameof(StaticProperty))] string source)
         {
             Assert.AreEqual("StaticProperty", source);
         }
@@ -53,7 +54,7 @@ namespace NUnit.Framework.Attributes
 
         [Test]
         public void ValueSourceCanBeInheritedStaticProperty(
-            [ValueSource("InheritedStaticProperty")] bool source)
+            [ValueSource(nameof(InheritedStaticProperty))] bool source)
         {
             Assert.AreEqual(true, source);
         }
@@ -62,11 +63,11 @@ namespace NUnit.Framework.Attributes
         public void ValueSourceMayNotBeInstanceProperty()
         {
             var result = TestBuilder.RunParameterizedMethodSuite(GetType(), "MethodWithValueSourceInstanceProperty");
-            Assert.That(result.Children[0].ResultState, Is.EqualTo(ResultState.NotRunnable));
+            Assert.That(result.Children.ToArray()[0].ResultState, Is.EqualTo(ResultState.NotRunnable));
         }
 
         public void MethodWithValueSourceInstanceProperty(
-            [ValueSource("InstanceProperty")] string source)
+            [ValueSource(nameof(InstanceProperty))] string source)
         {
             Assert.AreEqual("InstanceProperty", source);
         }
@@ -78,7 +79,7 @@ namespace NUnit.Framework.Attributes
 
         [Test]
         public void ValueSourceCanBeStaticMethod(
-            [ValueSource("StaticMethod")] string source)
+            [ValueSource(nameof(StaticMethod))] string source)
         {
             Assert.AreEqual("StaticMethod", source);
         }
@@ -92,11 +93,11 @@ namespace NUnit.Framework.Attributes
         public void ValueSourceMayNotBeInstanceMethod()
         {
             var result = TestBuilder.RunParameterizedMethodSuite(GetType(), "MethodWithValueSourceInstanceMethod");
-            Assert.That(result.Children[0].ResultState, Is.EqualTo(ResultState.NotRunnable));
+            Assert.That(result.Children.ToArray()[0].ResultState, Is.EqualTo(ResultState.NotRunnable));
         }
 
         public void MethodWithValueSourceInstanceMethod(
-            [ValueSource("InstanceMethod")] string source)
+            [ValueSource(nameof(InstanceMethod))] string source)
         {
             Assert.AreEqual("InstanceMethod", source);
         }
@@ -108,7 +109,7 @@ namespace NUnit.Framework.Attributes
 
         [Test]
         public void ValueSourceCanBeStaticField(
-            [ValueSource("StaticField")] string source)
+            [ValueSource(nameof(StaticField))] string source)
         {
             Assert.AreEqual("StaticField", source);
         }
@@ -119,11 +120,11 @@ namespace NUnit.Framework.Attributes
         public void ValueSourceMayNotBeInstanceField()
         {
             var result = TestBuilder.RunParameterizedMethodSuite(GetType(), "MethodWithValueSourceInstanceField");
-            Assert.That(result.Children[0].ResultState, Is.EqualTo(ResultState.NotRunnable));
+            Assert.That(result.Children.ToArray ()[0].ResultState, Is.EqualTo(ResultState.NotRunnable));
         }
 
         public void MethodWithValueSourceInstanceField(
-            [ValueSource("InstanceField")] string source)
+            [ValueSource(nameof(InstanceField))] string source)
         {
             Assert.AreEqual("InstanceField", source);
         }
@@ -132,9 +133,9 @@ namespace NUnit.Framework.Attributes
 
         [Test, Sequential]
         public void MultipleArguments(
-            [ValueSource("Numerators")] int n, 
-            [ValueSource("Denominators")] int d, 
-            [ValueSource("Quotients")] int q)
+            [ValueSource(nameof(Numerators))] int n, 
+            [ValueSource(nameof(Denominators))] int d, 
+            [ValueSource(nameof(Quotients))] int q)
         {
             Assert.AreEqual(q, n / d);
         }
@@ -145,9 +146,9 @@ namespace NUnit.Framework.Attributes
 
         [Test, Sequential]
         public void ValueSourceMayBeInAnotherClass(
-            [ValueSource(typeof(DivideDataProvider), "Numerators")] int n,
-            [ValueSource(typeof(DivideDataProvider), "Denominators")] int d,
-            [ValueSource(typeof(DivideDataProvider), "Quotients")] int q)
+            [ValueSource(typeof(DivideDataProvider), nameof(DivideDataProvider.Numerators))] int n,
+            [ValueSource(typeof(DivideDataProvider), nameof(DivideDataProvider.Denominators))] int d,
+            [ValueSource(typeof(DivideDataProvider), nameof(DivideDataProvider.Quotients))] int q)
         {
             Assert.AreEqual(q, n / d);
         }
@@ -161,7 +162,7 @@ namespace NUnit.Framework.Attributes
 
         [Test]
         public void ValueSourceMayBeGeneric(
-            [ValueSourceAttribute(typeof(ValueProvider), "IntegerProvider")] int val)
+            [ValueSourceAttribute(typeof(ValueProvider), nameof(ValueProvider.IntegerProvider))] int val)
         {
             Assert.That(2 * val, Is.EqualTo(val + val));
         }
@@ -198,12 +199,12 @@ namespace NUnit.Framework.Attributes
             get { return null; }
         }
 
-        [Test, Explicit("Null or nonexisting data sources definitions should not prevent other tests from run #1121")]
+        [Test, Explicit("Null or nonexistent data sources definitions should not prevent other tests from run #1121")]
         public void ValueSourceMayNotBeNull(
-            [ValueSource("NullSource")] string nullSource,
-            [ValueSource("NullDataSourceProvider")] string nullDataSourceProvided,
-            [ValueSource(typeof(ValueProvider), "ForeignNullResultProvider")] string nullDataSourceProvider,
-            [ValueSource("NullDataSourceProperty")] int nullDataSourceProperty,
+            [ValueSource(nameof(NullSource))] string nullSource,
+            [ValueSource(nameof(NullDataSourceProvider))] string nullDataSourceProvided,
+            [ValueSource(typeof(ValueProvider), nameof(ValueProvider.ForeignNullResultProvider))] string nullDataSourceProvider,
+            [ValueSource(nameof(NullDataSourceProperty))] int nullDataSourceProperty,
             [ValueSource("SomeNonExistingMemberSource")] int nonExistingMember)
         {
             Assert.Fail();
@@ -212,18 +213,46 @@ namespace NUnit.Framework.Attributes
         [Test]
         public void ValueSourceAttributeShouldThrowInsteadOfReturningNull()
         {
-            var method = new MethodWrapper(GetType(), "ValueSourceMayNotBeNull");
+            var method = GetType().GetMethod("ValueSourceMayNotBeNull");
             var parameters = method.GetParameters();
 
             foreach (var parameter in parameters)
             {
-                var dataSource = parameter.GetCustomAttributes<IParameterDataSource>(false)[0];
-
-                Assert.Throws<InvalidDataSourceException>(() =>
-                {
-                    var data = dataSource.GetData(parameter);
-                }); 
+                var dataSource = parameter.GetAttributes<IParameterDataSource>(false)[0];
+                Assert.Throws<InvalidDataSourceException>(() => dataSource.GetData(GetType(), parameter));
             }
+        }
+
+        [Test]
+        public void MethodWithArrayArguments([ValueSource(nameof(ComplexArrayBasedTestInput))] object o)
+        {
+        }
+
+        static object[] ComplexArrayBasedTestInput = new[]
+        {
+            new object[] { 1, "text", new object() },
+            new object[0],
+            new object[] { 1, new int[] { 2, 3 }, 4 },
+            new object[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
+            new object[] { new byte[,] { { 1, 2 }, { 2, 3 } } }
+        };
+
+        [Test]
+        public void TestNameIntrospectsArrayValues()
+        {
+            TestSuite suite = TestBuilder.MakeParameterizedMethodSuite(
+                GetType(), nameof(MethodWithArrayArguments));
+
+            Assert.That(suite.TestCaseCount, Is.EqualTo(5));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(suite.Tests[0].Name, Is.EqualTo(@"MethodWithArrayArguments([1, ""text"", System.Object])"));
+                Assert.That(suite.Tests[1].Name, Is.EqualTo(@"MethodWithArrayArguments([])"));
+                Assert.That(suite.Tests[2].Name, Is.EqualTo(@"MethodWithArrayArguments([1, Int32[], 4])"));
+                Assert.That(suite.Tests[3].Name, Is.EqualTo(@"MethodWithArrayArguments([1, 2, 3, 4, 5, ...])"));
+                Assert.That(suite.Tests[4].Name, Is.EqualTo(@"MethodWithArrayArguments([System.Byte[,]])"));
+            });
         }
     }
 

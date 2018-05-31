@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2009 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2009 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -31,38 +31,48 @@ namespace NUnit.Framework.Attributes
 {
     public class SetUpFixtureAttributeTests
     {
-        [TestCase(typeof(Class1))]
-        [TestCase(typeof(Class2))]
-        [TestCase(typeof(Class3))]
-        [TestCase(typeof(Class4))]
+        [Test]
+        public void SetUpFixtureCanBeIgnored()
+        {
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(typeof(IgnoredSetUpFixture));
+            foreach (var fixture in fixtures)
+                Assert.That(fixture.RunState, Is.EqualTo(RunState.Ignored));
+        }
+
+        [Ignore("Just Because")]
+        private class IgnoredSetUpFixture
+        {
+        }
+
+        [Test]
+        public void SetUpFixtureMayBeParallelizable()
+        {
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(typeof(ParallelizableSetUpFixture));
+            foreach (var fixture in fixtures)
+                Assert.That(fixture.Properties.Get(PropertyNames.ParallelScope), Is.EqualTo(ParallelScope.Self));
+        }
+
+        [Parallelizable]
+        private class ParallelizableSetUpFixture
+        {
+        }
+
+        [TestCase(typeof(TestSetupClass))]
+        [TestCase(typeof(TestTearDownClass))]
         public void CertainAttributesAreNotAllowed(Type type)
         {
-            var fixtures = new SetUpFixtureAttribute().BuildFrom(new TypeWrapper(type));
+            var fixtures = new SetUpFixtureAttribute().BuildFrom(type);
             foreach (var fixture in fixtures)
                 Assert.That(fixture.RunState, Is.EqualTo(RunState.NotRunnable));
         }
 
-#pragma warning disable 618 // Obsolete Attributes
-        private class Class1
-        {
-            [TestFixtureSetUp]
-            public void SomeMethod() { }
-        }
-
-        private class Class2
-        {
-            [TestFixtureTearDown]
-            public void SomeMethod() { }
-        }
-#pragma warning restore
-
-        private class Class3
+        private class TestSetupClass
         {
             [SetUp]
             public void SomeMethod() { }
         }
 
-        private class Class4
+        private class TestTearDownClass
         {
             [TearDown]
             public void SomeMethod() { }

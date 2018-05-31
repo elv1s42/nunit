@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -23,6 +23,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -36,7 +37,7 @@ namespace NUnitLite
 {
     /// <summary>
     /// NUnit3XmlOutputWriter is responsible for writing the results
-    /// of a test to a file in NUnit 3.0 format.
+    /// of a test to a file in NUnit 3 format.
     /// </summary>
     public class NUnit3XmlOutputWriter : OutputWriter
     {
@@ -61,7 +62,9 @@ namespace NUnitLite
         /// </summary>
         /// <param name="result">The result to be written to a file</param>
         /// <param name="writer">A TextWriter to which the result is written</param>
-        public override void WriteResultFile(ITestResult result, TextWriter writer, IDictionary runSettings, TestFilter filter)
+        /// <param name="runSettings"></param>
+        /// <param name="filter"></param>
+        public override void WriteResultFile(ITestResult result, TextWriter writer, IDictionary<string, object> runSettings, TestFilter filter)
         {
             XmlWriterSettings xmlSettings = new XmlWriterSettings();
             xmlSettings.Indent = true;
@@ -72,20 +75,18 @@ namespace NUnitLite
             }
         }
 
-        private void WriteXmlResultOutput(ITestResult result, XmlWriter xmlWriter, IDictionary runSettings, TestFilter filter)
+        private void WriteXmlResultOutput(ITestResult result, XmlWriter xmlWriter, IDictionary<string, object> runSettings, TestFilter filter)
         {
             TNode resultNode = result.ToXml(true);
 
             // Insert elements as first child in reverse order
             if (runSettings != null) // Some platforms don't have settings
                 FrameworkController.InsertSettingsElement(resultNode, runSettings);
-#if !SILVERLIGHT
             FrameworkController.InsertEnvironmentElement(resultNode);
-#endif
 
             TNode testRun = MakeTestRunElement(result);
 
-#if !SILVERLIGHT && !NETCF
+#if !NETSTANDARD1_6
             testRun.ChildNodes.Add(MakeCommandLineElement());
 #endif
             testRun.ChildNodes.Add(MakeTestFilterElement(filter));
@@ -127,7 +128,7 @@ namespace NUnitLite
             return testRun;
         }
 
-#if !SILVERLIGHT && !NETCF
+#if !NETSTANDARD1_6
         private static TNode MakeCommandLineElement()
         {
             return new TNode("command-line", Environment.CommandLine, true);

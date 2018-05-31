@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014-2015 Charlie Poole
+// Copyright (c) 2014-2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -103,6 +103,11 @@ namespace NUnitLite
         public int FailureCount { get; private set; }
 
         /// <summary>
+        /// Gets count of tests with warnings
+        /// </summary>
+        public int WarningCount { get; private set; }
+
+        /// <summary>
         /// Gets the error count
         /// </summary>
         public int ErrorCount { get; private set; }
@@ -135,25 +140,30 @@ namespace NUnitLite
         public int ExplicitCount { get; private set; }
 
         /// <summary>
+        /// Invalid Test Fixtures
+        /// </summary>
+        public int InvalidTestFixtures { get; private set; }
+
+        /// <summary>
         /// Gets the ResultState of the test result, which 
         /// indicates the success or failure of the test.
         /// </summary>
-        public ResultState ResultState { get; private set; }
+        public ResultState ResultState { get; }
 
         /// <summary>
         /// Gets or sets the time the test started running.
         /// </summary>
-        public DateTime StartTime { get; private set; }
+        public DateTime StartTime { get; }
 
         /// <summary>
         /// Gets or sets the time the test finished running.
         /// </summary>
-        public DateTime EndTime { get; private set; }
+        public DateTime EndTime { get; }
 
         /// <summary>
         /// Gets or sets the elapsed time for running the test in seconds
         /// </summary>
-        public double Duration { get; private set; }
+        public double Duration { get; }
 
         #endregion
 
@@ -164,6 +174,7 @@ namespace NUnitLite
             TestCount = 0;
             PassCount = 0;
             FailureCount = 0;
+            WarningCount = 0;
             ErrorCount = 0;
             InconclusiveCount = 0;
             SkipCount = 0;
@@ -174,16 +185,21 @@ namespace NUnitLite
 
         private void Summarize(ITestResult result)
         {
+            var label = result.ResultState.Label;
+            var status = result.ResultState.Status;
+
             if (result.Test.IsSuite)
             {
+                if (status == TestStatus.Failed && label == "Invalid")
+                    InvalidTestFixtures++;
+
                 foreach (ITestResult r in result.Children)
                     Summarize(r);
             }
             else
             {
                 TestCount++;
-                var label = result.ResultState.Label;
-                switch (result.ResultState.Status)
+                switch (status)
                 {
                     case TestStatus.Passed:
                         PassCount++;
@@ -195,6 +211,9 @@ namespace NUnitLite
                             ExplicitCount++;
                         else
                             SkipCount++;
+                        break;
+                    case TestStatus.Warning:
+                        WarningCount++; // This is not actually used by the nunit 2 format
                         break;
                     case TestStatus.Failed:
                         if (label == "Invalid")

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,6 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT
 using System;
 using System.Reflection;
 using System.Globalization;
@@ -32,31 +31,165 @@ using NUnit.Framework;
 namespace NUnitLite.Tests
 {
     using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using NUnit.TestUtilities;
 
     [TestFixture]
     public class CommandLineTests
     {
-#region General Tests
+        #region Argument PreProcessor Tests
+
+        [TestCase("--arg", "--arg")]
+        [TestCase("--ArG", "--ArG")]
+        [TestCase("--arg1 --arg2", "--arg1", "--arg2")]
+        [TestCase("--arg1 data --arg2", "--arg1", "data", "--arg2")]
+        [TestCase("")]
+        [TestCase("   ")]
+        [TestCase("\"--arg 1\" --arg2", "--arg 1", "--arg2")]
+        [TestCase("--arg1 \"--arg 2\"", "--arg1", "--arg 2")]
+        [TestCase("\"--arg 1\" \"--arg 2\"", "--arg 1", "--arg 2")]
+        [TestCase("\"--arg 1\" \"--arg 2\" arg3 \"arg 4\"", "--arg 1", "--arg 2", "arg3", "arg 4")]
+        [TestCase("--arg1 \"--arg 2\" arg3 \"arg 4\"", "--arg1", "--arg 2", "arg3", "arg 4")]
+        [TestCase("\"--arg 1\" \"--arg 2\" arg3 \"arg 4\" \"--arg 1\" \"--arg 2\" arg3 \"arg 4\"",
+            "--arg 1", "--arg 2", "arg3", "arg 4", "--arg 1", "--arg 2", "arg3", "arg 4")]
+        [TestCase("\"--arg\"", "--arg")]
+        [TestCase("\"--arg 1\"", "--arg 1")]
+        [TestCase("\"--arg abc\"", "--arg abc")]
+        [TestCase("\"--arg   abc\"", "--arg   abc")]
+        [TestCase("\" --arg   abc \"", " --arg   abc ")]
+        [TestCase("\"--arg=abc\"", "--arg=abc")]
+        [TestCase("\"--arg=aBc\"", "--arg=aBc")]
+        [TestCase("\"--arg = abc\"", "--arg = abc")]
+        [TestCase("\"--arg=abc,xyz\"", "--arg=abc,xyz")]
+        [TestCase("\"--arg=abc, xyz\"", "--arg=abc, xyz")]
+        [TestCase("\"@arg = ~ ` ! @ # $ % ^ & * ( ) _ - : ; + ' ' { } [ ] | \\ ? / . , , xYz\"",
+            "@arg = ~ ` ! @ # $ % ^ & * ( ) _ - : ; + ' ' { } [ ] | \\ ? / . , , xYz")]
+        public void GetArgsFromCommandLine(string cmdline, params string[] expectedArgs)
+        {
+            var actualArgs = CommandLineOptions.GetArgs(cmdline);
+
+            Assert.AreEqual(expectedArgs, actualArgs);
+        }
+
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1 --filearg2", "--arg1", "--filearg1", "--filearg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1\r\n--filearg2", "--arg1", "--filearg1", "--filearg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1 data", "--arg1", "--filearg1", "data", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1 \"data in quotes\"", "--arg1", "--filearg1", "data in quotes", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1 \"data in quotes with 'single' quotes\"", "--arg1", "--filearg1", "data in quotes with 'single' quotes", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1 \"data in quotes with /slashes/\"", "--arg1", "--filearg1", "data in quotes with /slashes/", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2 @file2.txt", "file1.txt:--filearg1 --filearg2,file2.txt:--filearg3", "--arg1", "--filearg1", "--filearg2", "--arg2", "--filearg3")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:", "--arg1", "--arg2")]
+        // Blank lines
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--fileArg1\n\n\n--fileArg2", "--arg1", "--fileArg1", "--fileArg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--fileArg1\n    \n\t\t\n--fileArg2", "--arg1", "--fileArg1", "--fileArg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--fileArg1\r\n\r\n\r\n--fileArg2", "--arg1", "--fileArg1", "--fileArg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--fileArg1\r\n    \r\n\t\t\r\n--fileArg2", "--arg1", "--fileArg1", "--fileArg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--filearg1 --filearg2\r\n\n--filearg3 --filearg4", "--arg1", "--filearg1", "--filearg2", "--filearg3", "--filearg4", "--arg2")]
+
+        // Comments
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--fileArg1\nThis is NOT treated as a COMMENT\n--fileArg2", "--arg1", "--fileArg1", "This", "is", "NOT", "treated", "as", "a", "COMMENT", "--fileArg2", "--arg2")]
+        [TestCase("--arg1 @file1.txt --arg2", "file1.txt:--fileArg1\n#This is treated as a COMMENT\n--fileArg2", "--arg1", "--fileArg1", "--fileArg2", "--arg2")]
+        // Nested files
+        [TestCase("--arg1 @file1.txt --arg2 @file2.txt", "file1.txt:--filearg1 --filearg2,file2.txt:--filearg3 @file3.txt,file3.txt:--filearg4", "--arg1", "--filearg1", "--filearg2", "--arg2", "--filearg3", "--filearg4")]
+        // Where clauses
+        [TestCase("testfile.dll @file1.txt --arg2", "file1.txt:--where test==somelongname", "testfile.dll", "--where", "test==somelongname", "--arg2")]
+        // NOTE: The next is not valid. Where clause is spread over several args and therefore won't parse. Quotes are required.
+        [TestCase("testfile.dll @file1.txt --arg2", "file1.txt:--where test == somelongname", "testfile.dll", "--where", "test", "==", "somelongname", "--arg2")]
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where \"test == somelongname\"",
+            "testfile.dll", "--where", "test == somelongname", "--arg2")]
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where\n    \"test == somelongname\"",
+            "testfile.dll", "--where", "test == somelongname", "--arg2")]
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where\n    \"test == somelongname or test == /another long name/ or cat == SomeCategory\"",
+            "testfile.dll", "--where", "test == somelongname or test == /another long name/ or cat == SomeCategory", "--arg2")]
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where\n    \"test == somelongname or\ntest == /another long name/ or\ncat == SomeCategory\"",
+            "testfile.dll", "--where", "test == somelongname or test == /another long name/ or cat == SomeCategory", "--arg2")]
+        [TestCase("testfile.dll @file1.txt --arg2",
+            "file1.txt:--where\n    \"test == somelongname ||\ntest == /another long name/ ||\ncat == SomeCategory\"",
+            "testfile.dll", "--where", "test == somelongname || test == /another long name/ || cat == SomeCategory", "--arg2")]
+        public void GetArgsFromFiles(string commandLine, string files, params string[] expectedArgs)
+        {
+            var filespecs = files.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var testFiles = new TestFile[filespecs.Length];
+
+            for (int ix = 0; ix < filespecs.Length; ++ix)
+            {
+                var filespec = filespecs[ix];
+                var split = filespec.IndexOf( ':' );
+                if (split < 0) throw new Exception("Invalid test data");
+
+                var fileName = filespec.Substring(0, split);
+                var fileContent = filespec.Substring(split + 1);
+
+                testFiles[ix] = new TestFile(Path.Combine(TestContext.CurrentContext.TestDirectory, fileName), fileContent, true);
+            }
+
+            var options = new NUnitLiteOptions();
+
+            string[] expandedArgs;
+
+            try
+            {
+                expandedArgs = options.PreParse(CommandLineOptions.GetArgs(commandLine)).ToArray();
+            }
+            finally
+            {
+                foreach (var tf in testFiles)
+                    tf.Dispose();
+            }
+
+            Assert.AreEqual(expectedArgs, expandedArgs);
+            Assert.Zero(options.ErrorMessages.Count);
+        }
+
+        [TestCase("--arg1 @file1.txt --arg2", "The file \"file1.txt\" was not found.")]
+        [TestCase("--arg1 @ --arg2", "You must include a file name after @.")]
+        public void GetArgsFromFiles_FailureTests(string args, string errorMessage)
+        {
+            var options = new NUnitLiteOptions();
+
+            options.PreParse(CommandLineOptions.GetArgs(args));
+
+            Assert.That(options.ErrorMessages, Is.EqualTo(new object[] { errorMessage }));
+        }
+
+        //[Test]
+        public void GetArgsFromFiles_NestingOverflow()
+        {
+            var options = new NUnitLiteOptions();
+            var args = new[] { "--arg1", "@file1.txt", "--arg2" };
+            var expectedErrors = new string[] { "@ nesting exceeds maximum depth of 3." };
+
+            using (new TestFile(Path.Combine(TestContext.CurrentContext.TestDirectory, "file1.txt"), "@file1.txt", true))
+            {
+                var expandedArgs = options.PreParse(args);
+
+                Assert.AreEqual(args, expandedArgs);
+                Assert.AreEqual(expectedErrors, options.ErrorMessages);
+            }
+        }
+        #endregion
+
+        #region General Tests
 
         [Test]
         public void NoInputFiles()
         {
             var options = new NUnitLiteOptions();
             Assert.True(options.Validate());
-            Assert.AreEqual(0, options.InputFiles.Count);
+            Assert.Null(options.InputFile);
         }
 
         [TestCase("ShowHelp", "help|h")]
         [TestCase("ShowVersion", "version|V")]
         [TestCase("StopOnError", "stoponerror")]
         [TestCase("WaitBeforeExit", "wait")]
-#if !PORTABLE
         [TestCase("NoHeader", "noheader|noh")]
-        [TestCase("Full", "full")]
-#if !SILVERLIGHT && !NETCF
         [TestCase("TeamCity", "teamcity")]
-#endif
-#endif
         public void CanRecognizeBooleanOptions(string propertyName, string pattern)
         {
             Console.WriteLine("Testing " + propertyName);
@@ -85,13 +218,11 @@ namespace NUnitLite.Tests
         }
 
         [TestCase("WhereClause", "where", new string[] { "cat==Fast" }, new string[0])]
-        [TestCase("DisplayTestLabels", "labels", new string[] { "Off", "On", "All" }, new string[] { "JUNK" })]
-#if !PORTABLE
+        [TestCase("DisplayTestLabels", "labels", new string[] { "Off", "On", "Before", "After", "All" }, new string[] { "JUNK" })]
         [TestCase("OutFile", "output|out", new string[] { "output.txt" }, new string[0])]
         [TestCase("ErrFile", "err", new string[] { "error.txt" }, new string[0])]
         [TestCase("WorkDirectory", "work", new string[] { "results" }, new string[0])]
         [TestCase("InternalTraceLevel", "trace", new string[] { "Off", "Error", "Warning", "Info", "Debug", "Verbose" }, new string[] { "JUNK" })]
-#endif
         public void CanRecognizeStringOptions(string propertyName, string pattern, string[] goodValues, string[] badValues)
         {
             string[] prototypes = pattern.Split('|');
@@ -119,9 +250,7 @@ namespace NUnitLite.Tests
         }
 
         [TestCase("DisplayTestLabels", "labels", new string[] { "Off", "On", "All" })]
-#if !PORTABLE
         [TestCase("InternalTraceLevel", "trace", new string[] { "Off", "Error", "Warning", "Info", "Debug", "Verbose" })]
-#endif
         public void CanRecognizeLowerCaseOptionValues(string propertyName, string optionName, string[] canonicalValues)
         {
             PropertyInfo property = GetPropertyInfo(propertyName);
@@ -129,15 +258,16 @@ namespace NUnitLite.Tests
 
             foreach (string canonicalValue in canonicalValues)
             {
-                string lowercaseValue = canonicalValue.ToLower(CultureInfo.InvariantCulture);
+                string lowercaseValue = canonicalValue.ToLowerInvariant();
                 string optionPlusValue = string.Format("--{0}:{1}", optionName, lowercaseValue);
                 var options = new NUnitLiteOptions(optionPlusValue);
                 Assert.True(options.Validate(), "Should be valid: " + optionPlusValue);
                 Assert.AreEqual(canonicalValue, (string)property.GetValue(options, null), "Didn't recognize " + optionPlusValue);
             }
         }
-
+#if !NETCOREAPP1_1
         [TestCase("DefaultTimeout", "timeout")]
+#endif
         [TestCase("RandomSeed", "seed")]
 #if PARALLEL
         [TestCase("NumberOfTestWorkers", "workers")]
@@ -179,12 +309,12 @@ namespace NUnitLite.Tests
         // }
 
         [TestCase("--where")]
-        [TestCase("--timeout")]
-#if !PORTABLE
         [TestCase("--output")]
         [TestCase("--err")]
         [TestCase("--work")]
         [TestCase("--trace")]
+#if !NETCOREAPP1_1
+        [TestCase("--timeout")]
 #endif
         public void MissingValuesAreReported(string option)
         {
@@ -194,29 +324,39 @@ namespace NUnitLite.Tests
         }
 
         [Test]
-        public void AssemblyName()
+        public void AssemblyIsInvalidByDefault()
         {
             var options = new NUnitLiteOptions("nunit.tests.dll");
-            Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count);
-            Assert.AreEqual("nunit.tests.dll", options.InputFiles[0]);
+            Assert.False(options.Validate());
+            Assert.AreEqual(1, options.ErrorMessages.Count);
+            Assert.That(options.ErrorMessages[0], Contains.Substring("Invalid entry: nunit.tests.dll"));
         }
 
-        // [Test]
-        // public void FixtureNamePlusAssemblyIsValid()
-        // {
-        //    var options = new NUnitLiteOptions( "-fixture:NUnit.Tests.AllTests", "nunit.tests.dll" );
-        //    Assert.AreEqual("nunit.tests.dll", options.Parameters[0]);
-        //    Assert.AreEqual("NUnit.Tests.AllTests", options.fixture);
-        //    Assert.IsTrue(options.Validate());
-        // }
+        [Test]
+        public void MultipleAssembliesAreInvalidByDefault()
+        {
+            var options = new NUnitLiteOptions("nunit.tests.dll", "another.dll");
+            Assert.False(options.Validate());
+            Assert.AreEqual(2, options.ErrorMessages.Count);
+            Assert.That(options.ErrorMessages[0], Contains.Substring("Invalid entry: nunit.tests.dll"));
+            Assert.That(options.ErrorMessages[1], Contains.Substring("Invalid entry: another.dll"));
+        }
 
         [Test]
-        public void AssemblyAloneIsValid()
+        public void AssemblyIsValidIfAllowed()
         {
-            var options = new NUnitLiteOptions("nunit.tests.dll");
+            var options = new NUnitLiteOptions(true, "nunit.tests.dll");
             Assert.True(options.Validate());
-            Assert.AreEqual(0, options.ErrorMessages.Count, "command line should be valid");
+            Assert.AreEqual(0, options.ErrorMessages.Count);
+        }
+
+        [Test]
+        public void MultipleAssembliesAreInvalidEvenIfOneIsAllowed()
+        {
+            var options = new NUnitLiteOptions(true, "nunit.tests.dll", "another.dll");
+            Assert.False(options.Validate());
+            Assert.AreEqual(1, options.ErrorMessages.Count);
+            Assert.That(options.ErrorMessages[0], Contains.Substring("Invalid entry: another.dll"));
         }
 
         [Test]
@@ -228,13 +368,6 @@ namespace NUnitLite.Tests
             Assert.AreEqual("Invalid argument: -asembly:nunit.tests.dll", options.ErrorMessages[0]);
         }
 
-        // [Test]
-        // public void NoFixtureNameProvided()
-        // {
-        //    ConsoleOptions options = new ConsoleOptions( "-fixture:", "nunit.tests.dll" );
-        //    Assert.IsFalse(options.Validate());
-        // }
-
         [Test]
         public void InvalidCommandLineParms()
         {
@@ -245,28 +378,28 @@ namespace NUnitLite.Tests
             Assert.AreEqual("Invalid argument: -assembly:Tests.dll", options.ErrorMessages[1]);
         }
 
-#endregion
+        #endregion
 
-#region Timeout Option
+        #region Timeout Option
 
         [Test]
         public void TimeoutIsMinusOneIfNoOptionIsProvided()
         {
-            var options = new NUnitLiteOptions("tests.dll");
+            var options = new NUnitLiteOptions();
             Assert.True(options.Validate());
             Assert.AreEqual(-1, options.DefaultTimeout);
         }
-
+#if !NETCOREAPP1_1
         [Test]
         public void TimeoutThrowsExceptionIfOptionHasNoValue()
         {
-            Assert.Throws<OptionException>(() => new NUnitLiteOptions("tests.dll", "-timeout"));
+            Assert.Throws<OptionException>(() => new NUnitLiteOptions("-timeout"));
         }
 
         [Test]
         public void TimeoutParsesIntValueCorrectly()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-timeout:5000");
+            var options = new NUnitLiteOptions("-timeout:5000");
             Assert.True(options.Validate());
             Assert.AreEqual(5000, options.DefaultTimeout);
         }
@@ -274,71 +407,52 @@ namespace NUnitLite.Tests
         [Test]
         public void TimeoutCausesErrorIfValueIsNotInteger()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-timeout:abc");
+            var options = new NUnitLiteOptions("-timeout:abc");
             Assert.False(options.Validate());
             Assert.AreEqual(-1, options.DefaultTimeout);
         }
+#endif
 
-#endregion
+        #endregion
 
-#region EngineResult Option
+        #region EngineResult Option
 
         [Test]
         public void FileNameWithoutResultOptionLooksLikeParameter()
         {
-            var options = new NUnitLiteOptions("tests.dll", "results.xml");
+            var options = new NUnitLiteOptions(true, "results.xml");
             Assert.True(options.Validate());
             Assert.AreEqual(0, options.ErrorMessages.Count);
-            Assert.AreEqual(2, options.InputFiles.Count);
+            //Assert.That(options.ErrorMessages[0], Contains.Substring("Invalid entry: results.xml"));
+            Assert.AreEqual("results.xml", options.InputFile);
         }
 
-#if !PORTABLE
         [Test]
         public void ResultOptionWithFilePath()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-result:results.xml");
+            var options = new NUnitLiteOptions("-result:results.xml");
             Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
 
             OutputSpecification spec = options.ResultOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("nunit3", spec.Format);
-            Assert.Null(spec.Transform);
         }
 
         [Test]
         public void ResultOptionWithFilePathAndFormat()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-result:results.xml;format=nunit2");
+            var options = new NUnitLiteOptions("-result:results.xml;format=nunit2");
             Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
 
             OutputSpecification spec = options.ResultOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("nunit2", spec.Format);
-            Assert.Null(spec.Transform);
-        }
-
-        [Test]
-        public void ResultOptionWithFilePathAndTransform()
-        {
-            var options = new NUnitLiteOptions("tests.dll", "-result:results.xml;transform=transform.xslt");
-            Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
-
-            OutputSpecification spec = options.ResultOutputSpecifications[0];
-            Assert.AreEqual("results.xml", spec.OutputPath);
-            Assert.AreEqual("user", spec.Format);
-            Assert.AreEqual("transform.xslt", spec.Transform);
         }
 
         [Test]
         public void ResultOptionWithoutFileNameIsInvalid()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-result:");
+            var options = new NUnitLiteOptions("-result:");
             Assert.False(options.Validate(), "Should not be valid");
             Assert.AreEqual(1, options.ErrorMessages.Count, "An error was expected");
         }
@@ -346,64 +460,63 @@ namespace NUnitLite.Tests
         [Test]
         public void ResultOptionMayBeRepeated()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-result:results.xml", "-result:nunit2results.xml;format=nunit2", "-result:myresult.xml;transform=mytransform.xslt");
+            var options = new NUnitLiteOptions("-result:results.xml", "-result:nunit2results.xml;format=nunit2");
             Assert.True(options.Validate(), "Should be valid");
 
             var specs = options.ResultOutputSpecifications;
-            Assert.AreEqual(3, specs.Count);
+            Assert.That(specs, Has.Count.EqualTo(2));
 
             var spec1 = specs[0];
             Assert.AreEqual("results.xml", spec1.OutputPath);
             Assert.AreEqual("nunit3", spec1.Format);
-            Assert.Null(spec1.Transform);
 
             var spec2 = specs[1];
             Assert.AreEqual("nunit2results.xml", spec2.OutputPath);
             Assert.AreEqual("nunit2", spec2.Format);
-            Assert.Null(spec2.Transform);
-
-            var spec3 = specs[2];
-            Assert.AreEqual("myresult.xml", spec3.OutputPath);
-            Assert.AreEqual("user", spec3.Format);
-            Assert.AreEqual("mytransform.xslt", spec3.Transform);
         }
 
         [Test]
         public void DefaultResultSpecification()
         {
-            var options = new NUnitLiteOptions("test.dll");
+            var options = new NUnitLiteOptions();
             Assert.AreEqual(1, options.ResultOutputSpecifications.Count);
 
             var spec = options.ResultOutputSpecifications[0];
             Assert.AreEqual("TestResult.xml", spec.OutputPath);
             Assert.AreEqual("nunit3", spec.Format);
-            Assert.Null(spec.Transform);
         }
 
         [Test]
         public void NoResultSuppressesDefaultResultSpecification()
         {
-            var options = new NUnitLiteOptions("test.dll", "-noresult");
+            var options = new NUnitLiteOptions("-noresult");
             Assert.AreEqual(0, options.ResultOutputSpecifications.Count);
         }
 
         [Test]
         public void NoResultSuppressesAllResultSpecifications()
         {
-            var options = new NUnitLiteOptions("test.dll", "-result:results.xml", "-noresult", "-result:nunit2results.xml;format=nunit2");
+            var options = new NUnitLiteOptions("-result:results.xml", "-noresult", "-result:nunit2results.xml;format=nunit2");
             Assert.AreEqual(0, options.ResultOutputSpecifications.Count);
         }
-#endif
 
-#endregion
+        [Test]
+        public void InvalidResultSpecRecordsError()
+        {
+            var options = new NUnitLiteOptions("test.dll", "-result:userspecifed.xml;format=nunit2;format=nunit3");
+            Assert.That(options.ResultOutputSpecifications, Has.Exactly(1).Items
+                    .And.Exactly(1).Property(nameof(OutputSpecification.OutputPath)).EqualTo("TestResult.xml"));
+            Assert.That(options.ErrorMessages, Has.Exactly(1).Contains("invalid output spec").IgnoreCase);
+        }
+
+        #endregion
 
         #region Explore Option
 
-#if !PORTABLE
         [Test]
         public void ExploreOptionWithoutPath()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-explore");
+            var options = new NUnitLiteOptions("-explore");
             Assert.True(options.Validate());
             Assert.True(options.Explore);
         }
@@ -411,67 +524,43 @@ namespace NUnitLite.Tests
         [Test]
         public void ExploreOptionWithFilePath()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-explore:results.xml");
+            var options = new NUnitLiteOptions("-explore:results.xml");
             Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
             Assert.True(options.Explore);
 
             OutputSpecification spec = options.ExploreOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("nunit3", spec.Format);
-            Assert.Null(spec.Transform);
         }
 
         [Test]
         public void ExploreOptionWithFilePathAndFormat()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-explore:results.xml;format=cases");
+            var options = new NUnitLiteOptions("-explore:results.xml;format=cases");
             Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
             Assert.True(options.Explore);
 
             OutputSpecification spec = options.ExploreOutputSpecifications[0];
             Assert.AreEqual("results.xml", spec.OutputPath);
             Assert.AreEqual("cases", spec.Format);
-            Assert.Null(spec.Transform);
-        }
-
-        [Test]
-        public void ExploreOptionWithFilePathAndTransform()
-        {
-            var options = new NUnitLiteOptions("tests.dll", "-explore:results.xml;transform=myreport.xslt");
-            Assert.True(options.Validate());
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
-            Assert.True(options.Explore);
-
-            OutputSpecification spec = options.ExploreOutputSpecifications[0];
-            Assert.AreEqual("results.xml", spec.OutputPath);
-            Assert.AreEqual("user", spec.Format);
-            Assert.AreEqual("myreport.xslt", spec.Transform);
         }
 
         [Test]
         public void ExploreOptionWithFilePathUsingEqualSign()
         {
-            var options = new NUnitLiteOptions("tests.dll", "-explore=C:/nunit/tests/bin/Debug/console-test.xml");
+            var options = new NUnitLiteOptions("-explore=C:/nunit/tests/bin/Debug/console-test.xml");
             Assert.True(options.Validate());
             Assert.True(options.Explore);
-            Assert.AreEqual(1, options.InputFiles.Count, "assembly should be set");
-            Assert.AreEqual("tests.dll", options.InputFiles[0]);
             Assert.AreEqual("C:/nunit/tests/bin/Debug/console-test.xml", options.ExploreOutputSpecifications[0].OutputPath);
         }
 
-#if !SILVERLIGHT && !NETCF
         [TestCase(true, null, true)]
         [TestCase(false, null, false)]
         [TestCase(true, false, true)]
         [TestCase(false, false, false)]
         [TestCase(true, true, true)]
         [TestCase(false, true, true)]
-        public void ShouldSetTeamCityFlagAccordingToArgsAndDefauls(bool hasTeamcityInCmd, bool? defaultTeamcity, bool expectedTeamCity)
+        public void ShouldSetTeamCityFlagAccordingToArgsAndDefaults(bool hasTeamcityInCmd, bool? defaultTeamcity, bool expectedTeamCity)
         {
             // Given
             List<string> args = new List<string> { "tests.dll" };
@@ -496,8 +585,64 @@ namespace NUnitLite.Tests
             // Then
             Assert.AreEqual(actualTeamCity, expectedTeamCity);
         }
-#endif
-#endif
+
+        #endregion
+
+        #region Test Parameters
+
+        [Test]
+        public void SingleTestParameter()
+        {
+            var options = new NUnitLiteOptions("--params=X=5");
+            Assert.That(options.ErrorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo(new Dictionary<string, string> { {"X", "5" } }));
+        }
+
+        [Test]
+        public void TwoTestParametersInOneOption()
+        {
+            var options = new NUnitLiteOptions("--params:X=5;Y=7");
+            Assert.That(options.ErrorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo(new Dictionary<string, string> { { "X", "5" }, { "Y", "7" } }));
+        }
+
+        [Test]
+        public void TwoTestParametersInSeparateOptions()
+        {
+            var options = new NUnitLiteOptions("-p:X=5", "-p:Y=7");
+            Assert.That(options.ErrorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo(new Dictionary<string, string> { { "X", "5" }, { "Y", "7" } }));
+        }
+
+        [Test]
+        public void ThreeTestParametersInTwoOptions()
+        {
+            var options = new NUnitLiteOptions("--params:X=5;Y=7", "-p:Z=3");
+            Assert.That(options.ErrorMessages, Is.Empty);
+            Assert.That(options.TestParameters, Is.EqualTo(new Dictionary<string, string> { { "X", "5" }, { "Y", "7" }, { "Z", "3" } }));
+        }
+
+        [Test]
+        public void ParameterWithoutEqualSignIsInvalid()
+        {
+            var options = new NUnitLiteOptions("--params=X5");
+            Assert.That(options.ErrorMessages.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DisplayTestParameters()
+        {
+            if (TestContext.Parameters.Count == 0)
+            {
+                Console.WriteLine("No Test Parameters were passed");
+                return;
+            }
+
+            Console.WriteLine("Test Parameters---");
+
+            foreach (var name in TestContext.Parameters.Names)
+                Console.WriteLine("   Name: {0} Value: {1}", name, TestContext.Parameters[name]);
+        }
 
         #endregion
 
@@ -517,7 +662,7 @@ namespace NUnitLite.Tests
             return property;
         }
 
-#endregion
+        #endregion
 
         internal sealed class DefaultOptionsProviderStub : IDefaultOptionsProvider
         {
@@ -526,8 +671,7 @@ namespace NUnitLite.Tests
                 TeamCity = teamCity;
             }
 
-            public bool TeamCity { get; private set; }
+            public bool TeamCity { get; }
         }
     }
 }
-#endif

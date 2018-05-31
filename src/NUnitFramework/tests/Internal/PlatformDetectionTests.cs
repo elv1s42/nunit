@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007-2014 Charlie Poole
+// Copyright (c) 2007-2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -20,7 +20,7 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
-#if !PORTABLE
+#if PLATFORM_DETECTION
 using System;
 using System.Collections;
 
@@ -58,7 +58,7 @@ namespace NUnit.Framework.Internal
             CheckPlatforms(
                 new PlatformHelper( OSPlatform.CurrentPlatform, runtimeFramework ),
                 expectedPlatforms,
-                PlatformHelper.RuntimePlatforms + ",NET-1.0,NET-1.1,NET-2.0,NET-3.0,NET-3.5,NET-4.0,NET-4.5,MONO-1.0,MONO-2.0,MONO-3.0,MONO-3.5,MONO-4.0,MONOTOUCH,NETCF-2.0,NETCF-3.5,SL-3.0,SL-4.0,SL-5.0" );
+                PlatformHelper.RuntimePlatforms + ",NET-1.0,NET-1.1,NET-2.0,NET-3.0,NET-3.5,NET-4.0,NET-4.5,MONO-1.0,MONO-2.0,MONO-3.0,MONO-3.5,MONO-4.0,MONOTOUCH" );
         }
 
         private void CheckPlatforms( PlatformHelper helper, 
@@ -108,15 +108,6 @@ namespace NUnit.Framework.Internal
             CheckOSPlatforms( 
                 new OSPlatform( PlatformID.Win32Windows, new Version( 4, 90 ) ),
                 "WinMe,Win32Windows,Win32,Win" );
-        }
-        
-        [Test]
-        public void DetectWinCE()
-        {
-            PlatformID winCE = (PlatformID)Enum.Parse(typeof(PlatformID), "WinCE", false);
-            CheckOSPlatforms(
-                new OSPlatform(winCE, new Version(1, 0)),
-                "WinCE,Win32,Win" );
         }
 
         [Test]
@@ -262,8 +253,7 @@ namespace NUnit.Framework.Internal
                 new OSPlatform(OSPlatform.UnixPlatformID_Mono, new Version(0,0)),
                 "UNIX,Linux");
         }
-
-#if !NETCF
+        
         [Test]
         public void DetectXbox()
         {
@@ -279,7 +269,6 @@ namespace NUnit.Framework.Internal
                 new OSPlatform(PlatformID.MacOSX, new Version(0, 0)),
                 "MacOSX");
         }
-#endif
 
         [Test]
         public void DetectNet10()
@@ -327,14 +316,6 @@ namespace NUnit.Framework.Internal
             CheckRuntimePlatforms(
                 new RuntimeFramework(RuntimeType.Net, new Version(4, 0, 30319, 0)),
                 "Net,Net-4.0");
-        }
-
-        [Test]
-        public void DetectNetCF()
-        {
-            CheckRuntimePlatforms(
-                new RuntimeFramework( RuntimeType.NetCF, new Version( 1, 1, 4322, 0 ) ),
-                "NetCF" );
         }
 
         [Test]
@@ -394,30 +375,6 @@ namespace NUnit.Framework.Internal
         }
 
         [Test]
-        public void DetectSilverlight30()
-        {
-            CheckRuntimePlatforms(
-                new RuntimeFramework(RuntimeType.Silverlight, new Version(3, 0)),
-                "Silverlight,SL-3.0");
-        }
-
-        [Test]
-        public void DetectSilverlight40()
-        {
-            CheckRuntimePlatforms(
-                new RuntimeFramework(RuntimeType.Silverlight, new Version(4, 0)),
-                "Silverlight,SL-4.0");
-        }
-
-        [Test]
-        public void DetectSilverlight50()
-        {
-            CheckRuntimePlatforms(
-                new RuntimeFramework(RuntimeType.Silverlight, new Version(5, 0)),
-                "Silverlight,SL-5.0");
-        }
-
-        [Test]
         public void DetectExactVersion()
         {
             Assert.IsTrue( winXPHelper.IsPlatformSupported( "net-1.1.4322" ) );
@@ -472,9 +429,9 @@ namespace NUnit.Framework.Internal
         public void PlatformAttribute_InvalidPlatform()
         {
             PlatformAttribute attr = new PlatformAttribute( "Net-1.0,Net11,Mono" );
-            Assert.IsFalse( winXPHelper.IsPlatformSupported( attr ) );
-            Assert.That( winXPHelper.Reason, Does.StartWith("Invalid platform name"));
-            Assert.That( winXPHelper.Reason, Does.Contain("Net11"));
+            Assert.Throws<InvalidPlatformException>(
+                () => winXPHelper.IsPlatformSupported(attr), 
+                "Invalid platform name Net11");
         }
 
         [Test]
@@ -490,13 +447,13 @@ namespace NUnit.Framework.Internal
             bool is64BitProcess = helper.IsPlatformSupported(attr64);
             Assert.False(is32BitProcess & is64BitProcess, "Process cannot be both 32 and 64 bit");
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
             // For .NET 4.0 and 4.5, we can check further
             Assert.That(is64BitProcess, Is.EqualTo(Environment.Is64BitProcess));
 #endif
         }
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
         [Test]
         public void PlatformAttribute_OperatingSystemBitNess()
         {

@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,12 +21,11 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if NET_4_0 || NET_4_5 || PORTABLE
+#if ASYNC
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal.Commands;
 using NUnit.TestData;
@@ -43,8 +42,8 @@ namespace NUnit.Framework.Internal
         public void Setup()
         {
             _testObject = new AsyncSetupTearDownFixture();
-            var method = new MethodWrapper(typeof(AsyncSetupTearDownFixture), Success.ElementAt(0));
-            _context = new TestExecutionContext {TestObject = _testObject, CurrentResult = new TestCaseResult(new TestMethod(method))};
+            var method = new FixtureMethod(_testObject.GetType(), Success.ElementAt(0));
+            _context = new TestExecutionContext { TestObject = _testObject, CurrentResult = new TestCaseResult(new TestMethod(method)) };
         }
 
         [Test]

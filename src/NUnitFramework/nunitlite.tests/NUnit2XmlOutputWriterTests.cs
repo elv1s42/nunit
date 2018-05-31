@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
 using System;
 using System.IO;
 using System.Text;
@@ -111,13 +111,13 @@ namespace NUnitLite.Tests
         }
 
         [TestCase("total", MockTestFixture.Tests)]
-        [TestCase("errors", MockTestFixture.Errors)]
-        [TestCase("failures", MockTestFixture.Failures)]
+        [TestCase("errors", MockTestFixture.Failed_Error)]
+        [TestCase("failures", MockTestFixture.Failed_Other)]
         [TestCase("inconclusive", MockTestFixture.Inconclusive)]
-        [TestCase("not-run", MockTestFixture.NotRun+MockTestFixture.NotRunnable-MockTestFixture.Explicit)]
-        [TestCase("ignored", MockTestFixture.Ignored)]
-        [TestCase("skipped", MockTestFixture.NotRun-MockTestFixture.Ignored-MockTestFixture.Explicit)]
-        [TestCase("invalid", MockTestFixture.NotRunnable)]
+        [TestCase("not-run", MockTestFixture.Skipped+MockTestFixture.Failed_NotRunnable-MockTestFixture.Skipped_Explicit)]
+        [TestCase("ignored", MockTestFixture.Skipped_Ignored)]
+        [TestCase("skipped", MockTestFixture.Skipped-MockTestFixture.Skipped_Ignored-MockTestFixture.Skipped_Explicit)]
+        [TestCase("invalid", MockTestFixture.Failed_NotRunnable)]
         public void TestResults_CounterIsCorrect(string name, int count)
         {
             Assert.That(RequiredAttribute(topNode, name), Is.EqualTo(count.ToString()));
@@ -127,20 +127,16 @@ namespace NUnitLite.Tests
         public void TestResults_HasValidDateAttribute()
         {
             string dateString = RequiredAttribute(topNode, "date");
-#if !NETCF
             DateTime date;
             Assert.That(DateTime.TryParse(dateString, out date), "Invalid date attribute: {0}", dateString);
-#endif
         }
 
         [Test]
         public void TestResults_HasValidTimeAttribute()
         {
             string timeString = RequiredAttribute(topNode, "time");
-#if !NETCF
             DateTime time;
             Assert.That(DateTime.TryParse(timeString, out time), "Invalid time attribute: {0}", timeString);
-#endif
         }
 
         [Test]
@@ -153,12 +149,10 @@ namespace NUnitLite.Tests
         [TestCase("clr-version")]
         [TestCase("os-version")]
         [TestCase("platform")]
-#if !NETCF
         [TestCase("cwd")]
         [TestCase("machine-name")]
         [TestCase("user")]
         [TestCase("user-domain")]
-#endif
         public void Environment_HasRequiredAttribute(string name)
         {
             RequiredAttribute(envNode, name);
@@ -210,13 +204,11 @@ namespace NUnitLite.Tests
         [Test]
         public void TestSuite_HasValidTimeAttribute()
         {
-#if NETCF
-            RequiredAttribute(suiteNode, "time");
-#else
             double time;
+            var timeString = RequiredAttribute(suiteNode, "time");
             // NOTE: We use the TryParse overload with 4 args because it's supported in .NET 1.1
-            Assert.That(double.TryParse(RequiredAttribute(suiteNode, "time"),System.Globalization.NumberStyles.Float,null, out time), "Invalid value for time");
-#endif
+            var success = double.TryParse(timeString,System.Globalization.NumberStyles.Float,System.Globalization.NumberFormatInfo.InvariantInfo, out time);
+            Assert.That(success, "{0} is an invalid value for time", timeString);
         }
 
         [Test]

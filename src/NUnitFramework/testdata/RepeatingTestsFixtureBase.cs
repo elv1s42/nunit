@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -35,6 +35,7 @@ namespace NUnit.TestData.RepeatingTests
         private int fixtureTeardownCount;
         private int setupCount;
         private int teardownCount;
+        private readonly List<string> tearDownResults = new List<string>();
         protected int count;
 
         [OneTimeSetUp]
@@ -58,6 +59,7 @@ namespace NUnit.TestData.RepeatingTests
         [TearDown]
         public void TearDown()
         {
+            tearDownResults.Add(TestContext.CurrentContext.Result.Outcome.ToString());
             teardownCount++;
         }
 
@@ -76,6 +78,11 @@ namespace NUnit.TestData.RepeatingTests
         public int TeardownCount
         {
             get { return teardownCount; }
+        }
+
+        public List<string> TearDownResults
+        {
+            get { return tearDownResults; }
         }
         public int Count
         {

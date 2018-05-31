@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -40,9 +40,11 @@ namespace NUnit.Framework.Internal.Execution
         private static readonly Event[] events =
         {
             new TestStartedEvent(null),
+            new TestOutputEvent(null),
             new TestStartedEvent(null),
             new TestFinishedEvent(null),
             new TestStartedEvent(null),
+            new TestOutputEvent(null),
             new TestFinishedEvent(null),
             new TestFinishedEvent(null),
         };
@@ -122,7 +124,11 @@ namespace NUnit.Framework.Internal.Execution
             private volatile int receivedEvents;
 
             [Test]
+#if NET35
+            [Timeout(2000)]
+#elif THREAD_ABORT
             [Timeout(1000)]
+#endif
             public void DequeueBlocking_Stop()
             {
                 this.q = new EventQueue();
@@ -160,13 +166,16 @@ namespace NUnit.Framework.Internal.Execution
             private volatile bool afterEnqueue;
 
             [Test]
+#if NET35
+            [Timeout(2000)]
+#elif THREAD_ABORT
             [Timeout(1000)]
+#endif
             public void SetWaitHandle_Enqueue_Asynchronous()
             {
                 using (AutoResetEvent waitHandle = new AutoResetEvent(false))
                 {
                     this.q = new EventQueue();
-                    this.q.SetWaitHandleForSynchronizedEvents(waitHandle);
                     this.afterEnqueue = false;
                     this.RunProducerConsumer();
                 }
@@ -175,7 +184,6 @@ namespace NUnit.Framework.Internal.Execution
             protected override void Producer()
             {
                 Event asynchronousEvent = new TestStartedEvent(new TestSuite("Dummy"));
-                Assert.IsFalse(asynchronousEvent.IsSynchronous);
                 this.q.Enqueue(asynchronousEvent);
                 this.afterEnqueue = true;
                 Thread.MemoryBarrier();
@@ -219,7 +227,9 @@ namespace NUnit.Framework.Internal.Execution
         }
 
         [Test]
+#if THREAD_ABORT
         [Timeout(3000)]
+#endif
         public void PumpEvents()
         {
             EventQueue q = new EventQueue();
@@ -238,7 +248,9 @@ namespace NUnit.Framework.Internal.Execution
         }
 
         [Test]
-        [Timeout(1000)]
+#if THREAD_ABORT
+        [Timeout(3000)]
+#endif
         public void PumpSynchronousAndAsynchronousEvents()
         {
             EventQueue q = new EventQueue();
@@ -255,13 +267,9 @@ namespace NUnit.Framework.Internal.Execution
                     foreach (Event e in events)
                     {
                         q.Enqueue(e);
-                        if (e.IsSynchronous)
-                            Assert.That(q.Count, Is.EqualTo(0));
-                        else
-                        {
-                            sumOfAsynchronousQueueLength += q.Count;
-                            numberOfAsynchronousEvents++;
-                        }
+
+                        sumOfAsynchronousQueueLength += q.Count;
+                        numberOfAsynchronousEvents++;
                     }
                 }
 
@@ -269,48 +277,7 @@ namespace NUnit.Framework.Internal.Execution
             }
         }
 
-#if false
-        /// <summary>
-        /// Floods the queue of an EventPump with multiple concurrent event producers.
-        /// Prints the maximum queue length to Console, but does not implement an
-        /// oracle on what the maximum queue length should be.
-        /// </summary>
-        /// <param name="numberOfProducers">The number of concurrent producer threads.</param>
-        /// <param name="producerDelay">
-        /// If <c>true</c>, the producer threads slow down by adding a short delay time.
-        /// </param>
-        [TestCase(1, false)]
-        [TestCase(5, true)]
-        [TestCase(5, false)]
-        [Explicit("Takes several seconds. Just prints the queue length of the EventPump to Console, but has no oracle regarding this.")]
-        public void EventPumpQueueLength(int numberOfProducers, bool producerDelay)
-        {
-            EventQueue q = new EventQueue();
-            EventProducer[] producers = new EventProducer[numberOfProducers];
-            for (int i = 0; i < numberOfProducers; i++)
-                producers[i] = new EventProducer(q, i, producerDelay);
-
-            using (EventPump pump = new EventPump(TestListener.NULL, q))
-            {
-                pump.Name = "EventPumpQueueLength";
-                pump.Start();
-
-                foreach (EventProducer p in producers)
-                    p.ProducerThread.Start();
-                foreach (EventProducer p in producers)
-                    p.ProducerThread.Join();
-                pump.Stop();
-            }
-            Assert.That(q.Count, Is.EqualTo(0));
-
-            foreach (EventProducer p in producers)
-            {
-                Console.WriteLine("#Events: {0}, MaxQueueLength: {1}", p.SentEventsCount, p.MaxQueueLength);
-                Assert.IsNull(p.Exception, "{0}", p.Exception);
-            }
-        }
-#endif
-        #endregion
+#endregion
 
         public abstract class ProducerConsumerTest
         {
@@ -329,7 +296,9 @@ namespace NUnit.Framework.Internal.Execution
                 }
                 finally
                 {
+#if THREAD_ABORT
                     ThreadUtility.Kill(consumerThread);
+#endif
                 }
 
                 Assert.IsNull(this.myConsumerException);
@@ -347,9 +316,7 @@ namespace NUnit.Framework.Internal.Execution
                 }
                 catch (System.Threading.ThreadAbortException)
                 {
-#if !NETCF
                     Thread.ResetAbort();
-#endif
                 }
                 catch (Exception ex)
                 {

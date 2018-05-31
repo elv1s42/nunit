@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -22,7 +22,10 @@
 // ***********************************************************************
 
 using NUnit.Framework.Internal;
+using NUnit.Compatibility;
 using System.Collections;
+using System;
+using System.Reflection;
 
 namespace NUnit.Framework.Constraints
 {
@@ -34,11 +37,13 @@ namespace NUnit.Framework.Constraints
 
     /// <summary>
     /// The Constraint class is the base of all built-in constraints
-    /// within NUnit. It provides the operator overloads used to combine 
+    /// within NUnit. It provides the operator overloads used to combine
     /// constraints.
     /// </summary>
     public abstract class Constraint : IConstraint
     {
+        readonly Lazy<string> _displayName;
+
         #region Constructor
 
         /// <summary>
@@ -49,11 +54,16 @@ namespace NUnit.Framework.Constraints
         {
             Arguments = args;
 
-            DisplayName = this.GetType().Name;
-            if (DisplayName.EndsWith("`1") || DisplayName.EndsWith("`2"))
-                DisplayName = DisplayName.Substring(0, DisplayName.Length - 2);
-            if (DisplayName.EndsWith("Constraint"))
-                DisplayName = DisplayName.Substring(0, DisplayName.Length - 10);
+            _displayName = new Lazy<string>(() =>
+            {
+                var type = this.GetType();
+                var displayName = type.Name;
+                if (type.GetTypeInfo().IsGenericType)
+                    displayName = displayName.Substring(0, displayName.Length - 2);
+                if (displayName.EndsWith("Constraint", StringComparison.Ordinal))
+                    displayName = displayName.Substring(0, displayName.Length - 10);
+                return displayName;
+            });
         }
 
         #endregion
@@ -66,7 +76,7 @@ namespace NUnit.Framework.Constraints
         /// trailing "Constraint" removed. Derived classes may set
         /// this to another name in their constructors.
         /// </summary>
-        public string DisplayName { get; protected set; }
+        public virtual string DisplayName { get { return _displayName.Value; } }
 
         /// <summary>
         /// The Description of what this constraint tests, for
@@ -78,7 +88,7 @@ namespace NUnit.Framework.Constraints
         /// Arguments provided to this Constraint, for use in
         /// formatting the description.
         /// </summary>
-        public object[] Arguments { get; private set; }
+        public object[] Arguments { get; }
 
         /// <summary>
         /// The ConstraintBuilder holding this constraint
@@ -97,19 +107,18 @@ namespace NUnit.Framework.Constraints
         public abstract ConstraintResult ApplyTo<TActual>(TActual actual);
 
         /// <summary>
-        /// Applies the constraint to an ActualValueDelegate that returns 
-        /// the value to be tested. The default implementation simply evaluates 
-        /// the delegate but derived classes may override it to provide for 
+        /// Applies the constraint to an ActualValueDelegate that returns
+        /// the value to be tested. The default implementation simply evaluates
+        /// the delegate but derived classes may override it to provide for
         /// delayed processing.
         /// </summary>
         /// <param name="del">An ActualValueDelegate</param>
         /// <returns>A ConstraintResult</returns>
         public virtual ConstraintResult ApplyTo<TActual>(ActualValueDelegate<TActual> del)
         {
-#if NET_4_0 || NET_4_5 || PORTABLE
-            if (AsyncInvocationRegion.IsAsyncOperation(del))
-                using (var region = AsyncInvocationRegion.Create(del))
-                    return ApplyTo(region.WaitForPendingOperationsToComplete(del()));
+#if ASYNC
+            if (AsyncToSyncAdapter.IsAsyncOperation(del))
+                return ApplyTo(AsyncToSyncAdapter.Await(() => del.Invoke()));
 #endif
             return ApplyTo(GetTestObject(del));
         }
@@ -190,7 +199,7 @@ namespace NUnit.Framework.Constraints
         #region Operator Overloads
 
         /// <summary>
-        /// This operator creates a constraint that is satisfied only if both 
+        /// This operator creates a constraint that is satisfied only if both
         /// argument constraints are satisfied.
         /// </summary>
         public static Constraint operator &(Constraint left, Constraint right)
@@ -201,7 +210,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// This operator creates a constraint that is satisfied if either 
+        /// This operator creates a constraint that is satisfied if either
         /// of the argument constraints is satisfied.
         /// </summary>
         public static Constraint operator |(Constraint left, Constraint right)
@@ -212,7 +221,7 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
-        /// This operator creates a constraint that is satisfied if the 
+        /// This operator creates a constraint that is satisfied if the
         /// argument constraint is not satisfied.
         /// </summary>
         public static Constraint operator !(Constraint constraint)
@@ -280,17 +289,16 @@ namespace NUnit.Framework.Constraints
 
         #region After Modifier
 
-#if !PORTABLE
         /// <summary>
-        /// Returns a DelayedConstraint with the specified delay time.
+        /// Returns a DelayedConstraint.WithRawDelayInterval with the specified delay time.
         /// </summary>
-        /// <param name="delayInMilliseconds">The delay in milliseconds.</param>
+        /// <param name="delay">The delay, which defaults to milliseconds.</param>
         /// <returns></returns>
-        public DelayedConstraint After(int delayInMilliseconds)
+        public DelayedConstraint.WithRawDelayInterval After(int delay)
         {
-            return new DelayedConstraint(
+            return new DelayedConstraint.WithRawDelayInterval(new DelayedConstraint(
                 Builder == null ? this : Builder.Resolve(),
-                delayInMilliseconds);
+                delay));
         }
 
         /// <summary>
@@ -307,9 +315,9 @@ namespace NUnit.Framework.Constraints
                 delayInMilliseconds,
                 pollingInterval);
         }
-#endif
 
         #endregion
+
 
         #region IResolveConstraint Members
 

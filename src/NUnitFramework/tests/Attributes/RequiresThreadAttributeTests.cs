@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2014 Charlie Poole
+// Copyright (c) 2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,7 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
 using System;
 using System.Threading;
 
@@ -42,7 +42,7 @@ namespace NUnit.Framework.Attributes
             Assert.That(Thread.CurrentThread, Is.EqualTo(SetupThread));
         }
 
-#if !NETCF
+#if APARTMENT_STATE
         [Test, RequiresThread( ApartmentState.STA )]
         public void TestWithRequiresThreadWithSTAArgRunsOnSeparateThreadInSTA()
         {

@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -8,10 +8,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -45,17 +45,17 @@ namespace NUnit.Framework.Constraints
         Failure,
 
         /// <summary>
-        /// An error occured in applying the constraint (reserved for future use)
+        /// An error occurred in applying the constraint (reserved for future use)
         /// </summary>
         Error
     }
 
     /// <summary>
-    /// Contain the result of matching a <see cref="Constraint"/> against an actual value.
+    /// Contains the result of matching a <see cref="Constraint"/> against an actual value.
     /// </summary>
     public class ConstraintResult
     {
-        IConstraint _constraint;
+        readonly IConstraint _constraint;
 
         #region Constructors
 
@@ -101,7 +101,7 @@ namespace NUnit.Framework.Constraints
         /// <summary>
         /// The actual value that was passed to the <see cref="Constraint.ApplyTo{TActual}(TActual)"/> method.
         /// </summary>
-        public object ActualValue { get; private set; }
+        public object ActualValue { get; }
 
         /// <summary>
         /// Gets and sets the ResultStatus for this result.
@@ -136,14 +136,23 @@ namespace NUnit.Framework.Constraints
         /// as an argument. The default implementation simply passes
         /// the result and the actual value to the writer, which
         /// then displays the constraint description and the value.
-        /// 
+        ///
         /// Constraints that need to provide additional details,
-        /// such as where the error occured can override this.
+        /// such as where the error occurred, can override this.
         /// </summary>
         /// <param name="writer">The MessageWriter on which to display the message</param>
         public virtual void WriteMessageTo(MessageWriter writer)
         {
             writer.DisplayDifferences(this);
+        }
+
+        /// <summary>
+        /// Write some additional failure message.
+        /// </summary>
+        /// <param name="writer">The MessageWriter on which to display the message</param>
+        public virtual void WriteAdditionalLinesTo(MessageWriter writer)
+        {
+            //By default it does not write anything to writer but can be overriden in classes where needed. 
         }
 
         /// <summary>

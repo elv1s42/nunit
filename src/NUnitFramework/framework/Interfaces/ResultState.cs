@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007-2014 Charlie Poole
+// Copyright (c) 2007-2014 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -105,6 +105,11 @@ namespace NUnit.Framework.Interfaces
         public readonly static ResultState Success = new ResultState(TestStatus.Passed);
 
         /// <summary>
+        /// The test issued a warning
+        /// </summary>
+        public readonly static ResultState Warning = new ResultState(TestStatus.Warning);
+
+        /// <summary>
         /// The test failed
         /// </summary>
         public readonly static ResultState Failure = new ResultState(TestStatus.Failed);
@@ -130,6 +135,16 @@ namespace NUnit.Framework.Interfaces
         public readonly static ResultState ChildFailure = ResultState.Failure.WithSite(FailureSite.Child);
 
         /// <summary>
+        /// A suite failed because one or more child tests had warnings
+        /// </summary>
+        public readonly static ResultState ChildWarning = ResultState.Warning.WithSite(FailureSite.Child);
+
+        /// <summary>
+        /// A suite is marked ignored because one or more child tests were ignored
+        /// </summary>
+        public readonly static ResultState ChildIgnored = ResultState.Ignored.WithSite(FailureSite.Child);
+        
+        /// <summary>
         /// A suite failed in its OneTimeSetUp
         /// </summary>
         public readonly static ResultState SetUpFailure = ResultState.Failure.WithSite(FailureSite.SetUp);
@@ -152,19 +167,19 @@ namespace NUnit.Framework.Interfaces
         /// Gets the TestStatus for the test.
         /// </summary>
         /// <value>The status.</value>
-        public TestStatus Status { get; private set; }
+        public TestStatus Status { get; }
 
         /// <summary>
         /// Gets the label under which this test result is
         /// categorized, if any.
         /// </summary>
-        public string Label { get; private set; }
+        public string Label { get; }
 
         /// <summary>
         /// Gets the stage of test execution in which
         /// the failure or other result took place.
         /// </summary>
-        public FailureSite Site { get; private set; }
+        public FailureSite Site { get; }
 
         /// <summary>
         /// Get a new ResultState, which is the same as the current
@@ -175,6 +190,18 @@ namespace NUnit.Framework.Interfaces
         public ResultState WithSite(FailureSite site)
         {
             return new ResultState(this.Status, this.Label, site);
+        }
+
+        /// <summary>
+        /// Test whether this ResultState has the same Status and Label
+        /// as another one. In other words, the whether two are equal
+        /// ignoring the Site.
+        /// </summary>
+        /// <param name="other"></param>
+        /// <returns></returns>
+        public bool Matches(ResultState other)
+        {
+            return Status == other.Status && Label == other.Label;
         }
 
         #endregion
@@ -191,7 +218,7 @@ namespace NUnit.Framework.Interfaces
         public override bool Equals(object obj)
         {
             var other = obj as ResultState;
-            if (other == null) return false;
+            if (object.ReferenceEquals(other, null)) return false;
 
             return Status.Equals(other.Status) && Label.Equals(other.Label) && Site.Equals(other.Site);
         }
@@ -205,6 +232,29 @@ namespace NUnit.Framework.Interfaces
         public override int GetHashCode()
         {
             return (int)Status << 8 + (int)Site ^ Label.GetHashCode(); ;
+        }
+
+        #endregion
+
+        #region Operator Overloads
+
+        /// <summary>
+        /// Overload == operator for ResultStates
+        /// </summary>
+        public static bool operator ==(ResultState left, ResultState right)
+        {
+            if (object.ReferenceEquals(left, null))
+                return object.ReferenceEquals(right, null);
+
+            return left.Equals(right);
+        }
+
+        /// <summary>
+        /// Overload != operator for ResultStates
+        /// </summary>
+        public static bool operator !=(ResultState left, ResultState right)
+        {
+            return !(left == right);
         }
 
         #endregion

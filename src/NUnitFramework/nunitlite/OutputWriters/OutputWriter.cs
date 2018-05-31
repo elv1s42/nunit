@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2011 Charlie Poole
+// Copyright (c) 2011 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -22,6 +22,7 @@
 // ***********************************************************************
 
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using NUnit.Framework.Interfaces;
@@ -42,9 +43,10 @@ namespace NUnitLite
         /// <param name="result">The result to be written</param>
         /// <param name="outputPath">Path to the file to which the result is written</param>
         /// <param name="runSettings">A dictionary of settings used for this test run</param>
-        public void WriteResultFile(ITestResult result, string outputPath, IDictionary runSettings, TestFilter filter)
+        public void WriteResultFile(ITestResult result, string outputPath, IDictionary<string, object> runSettings, TestFilter filter)
         {
-            using (StreamWriter writer = new StreamWriter(outputPath, false, Encoding.UTF8))
+            using (var stream = new FileStream(outputPath, FileMode.Create))
+            using (var writer = new StreamWriter(stream, Encoding.UTF8))
             {
                 WriteResultFile(result, writer, runSettings, filter);
             }
@@ -57,7 +59,8 @@ namespace NUnitLite
         /// <param name="outputPath">Path to the file to which the test info is written</param>
         public void WriteTestFile(ITest test, string outputPath)
         {
-            using (StreamWriter writer = new StreamWriter(outputPath, false, Encoding.UTF8))
+            using (var stream = new FileStream(outputPath, FileMode.Create))
+            using (var writer = new StreamWriter(stream, Encoding.UTF8))
             {
                 WriteTestFile(test, writer);
             }
@@ -69,7 +72,8 @@ namespace NUnitLite
         /// <param name="result">The result to be written</param>
         /// <param name="writer">A TextWriter to which the result is written</param>
         /// <param name="runSettings">A dictionary of settings used for this test run</param>
-        public abstract void WriteResultFile(ITestResult result, TextWriter writer, IDictionary runSettings, TestFilter filter);
+        /// <param name="filter"></param>
+        public abstract void WriteResultFile(ITestResult result, TextWriter writer, IDictionary<string, object> runSettings, TestFilter filter);
 
         /// <summary>
         /// Abstract method that writes test info to a TextWriter

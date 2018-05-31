@@ -1,5 +1,5 @@
 ﻿// ***********************************************************************
-// Copyright (c) 2012 Charlie Poole
+// Copyright (c) 2012 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,7 +21,8 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
-#if !NET_4_0 && !NET_4_5 || SILVERLIGHT
+#if NET20 || NET35
+using System;
 using System.Threading;
 
 namespace NUnit.Framework.Internal.Execution
@@ -33,10 +34,10 @@ namespace NUnit.Framework.Internal.Execution
     /// </summary>
     public class CountdownEvent
     {
-        int _initialCount;
+        readonly int _initialCount;
         int _remainingCount;
-        object _lock = new object();
-        ManualResetEvent _event = new ManualResetEvent(false);
+        readonly object _lock = new object();
+        readonly ManualResetEvent _event = new ManualResetEvent(false);
 
         /// <summary>
         /// Construct a CountdownEvent
@@ -71,6 +72,19 @@ namespace NUnit.Framework.Internal.Execution
             lock (_lock)
             {
                 if (--_remainingCount == 0)
+                    _event.Set();
+            }
+        }
+
+        /// <summary>
+        /// Decrement the count by the specified amount
+        /// </summary>
+        public void Signal(int signalCount)
+        {
+            lock (_lock)
+            {
+                _remainingCount = Math.Min(0, _remainingCount - signalCount);
+                if (_remainingCount <= 0)
                     _event.Set();
             }
         }

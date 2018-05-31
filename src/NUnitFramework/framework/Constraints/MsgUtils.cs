@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2012 Charlie Poole
+// Copyright (c) 2012 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -24,7 +24,10 @@
 using System;
 using System.Text;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Reflection;
+using NUnit.Compatibility;
 using NUnit.Framework.Internal;
 
 namespace NUnit.Framework.Constraints
@@ -55,19 +58,17 @@ namespace NUnit.Framework.Constraints
         private const string ELLIPSIS = "...";
 
         /// <summary>
-        /// Formatting strings used for expected and actual _values
+        /// Formatting strings used for expected and actual values
         /// </summary>
         private static readonly string Fmt_Null = "null";
+
         private static readonly string Fmt_EmptyString = "<string.Empty>";
         private static readonly string Fmt_EmptyCollection = "<empty>";
-
         private static readonly string Fmt_String = "\"{0}\"";
         private static readonly string Fmt_Char = "'{0}'";
-        private static readonly string Fmt_DateTime = "yyyy-MM-dd HH:mm:ss.fff";
-#if !NETCF
-		private static readonly string Fmt_DateTimeOffset = "yyyy-MM-dd HH:mm:ss.fffzzz";
-#endif
-		private static readonly string Fmt_ValueType = "{0}";
+        private static readonly string Fmt_DateTime = "yyyy-MM-dd HH:mm:ss.FFFFFFF";
+        private static readonly string Fmt_DateTimeOffset = "yyyy-MM-dd HH:mm:ss.FFFFFFFzzz";
+        private static readonly string Fmt_ValueType = "{0}";
         private static readonly string Fmt_Default = "<{0}>";
 
         /// <summary>
@@ -84,11 +85,9 @@ namespace NUnit.Framework.Constraints
 
             AddFormatter(next => val => val is DateTime ? FormatDateTime((DateTime)val) : next(val));
 
-#if !NETCF
-			AddFormatter(next => val => val is DateTimeOffset ? FormatDateTimeOffset ((DateTimeOffset)val) : next (val));
-#endif
+            AddFormatter(next => val => val is DateTimeOffset ? FormatDateTimeOffset((DateTimeOffset)val) : next(val));
 
-			AddFormatter(next => val => val is decimal ? FormatDecimal((decimal)val) : next(val));
+            AddFormatter(next => val => val is decimal ? FormatDecimal((decimal)val) : next(val));
 
             AddFormatter(next => val => val is float ? FormatFloat((float)val) : next(val));
 
@@ -102,15 +101,11 @@ namespace NUnit.Framework.Constraints
 
             AddFormatter(next => val => val.GetType().IsArray ? FormatArray((Array)val) : next(val));
 
-#if NETCF
-            AddFormatter(next => val =>
-            {
-                var vi = val as System.Reflection.MethodInfo;
-                return (vi != null && vi.IsGenericMethodDefinition)
-                        ? string.Format(Fmt_Default, vi.Name + "<>") 
-                        : next(val);
-            });
-#endif
+            AddFormatter(next => val => TryFormatKeyValuePair(val) ?? next(val));
+
+            AddFormatter(next => val => TryFormatTuple(val, TypeHelper.IsTuple, GetValueFromTuple) ?? next(val));
+
+            AddFormatter(next => val => TryFormatTuple(val, TypeHelper.IsValueTuple, GetValueFromValueTuple) ?? next(val));
         }
 
         /// <summary>
@@ -183,7 +178,7 @@ namespace NUnit.Framework.Constraints
             int rank = array.Rank;
             int[] products = new int[rank];
 
-            for (int product = 1, r = rank; --r >= 0; )
+            for (int product = 1, r = rank; --r >= 0;)
                 products[r] = product *= array.GetLength(r);
 
             int count = 0;
@@ -215,6 +210,77 @@ namespace NUnit.Framework.Constraints
             return sb.ToString();
         }
 
+        private static string TryFormatKeyValuePair(object value)
+        {
+            if (value == null)
+                return null;
+
+            Type valueType = value.GetType();
+            if (!valueType.GetTypeInfo().IsGenericType)
+                return null;
+
+            Type baseValueType = valueType.GetGenericTypeDefinition();
+            if (baseValueType != typeof(KeyValuePair<,>))
+                return null;
+
+            object k = valueType.GetProperty("Key").GetValue(value, null);
+            object v = valueType.GetProperty("Value").GetValue(value, null);
+
+            return FormatKeyValuePair(k, v);
+        }
+
+        private static string FormatKeyValuePair(object key, object value)
+        {
+            return string.Format("[{0}, {1}]", FormatValue(key), FormatValue(value));
+        }
+
+        private static object GetValueFromTuple(Type type, string propertyName, object obj)
+        {
+            return type.GetProperty(propertyName).GetValue(obj, null);
+        }
+
+        private static object GetValueFromValueTuple(Type type, string propertyName, object obj)
+        {
+            return type.GetField(propertyName).GetValue(obj);
+        }
+
+        private static string TryFormatTuple(object value, Func<Type, bool> isTuple, Func<Type, string, object, object> getValue)
+        {
+            if (value == null)
+                return null;
+
+            Type valueType = value.GetType();
+            if (!isTuple(valueType))
+                return null;
+
+            return FormatTuple(value, true, getValue);
+        }
+
+        private static string FormatTuple(object value, bool printParentheses, Func<Type, string, object, object> getValue)
+        {
+            Type valueType = value.GetType();
+            int numberOfGenericArgs = valueType.GetGenericArguments().Length;
+
+            StringBuilder sb = new StringBuilder();
+            if (printParentheses)
+                sb.Append("(");
+
+            for (int i = 0; i < numberOfGenericArgs; i++)
+            {
+                if (i > 0) sb.Append(", ");
+
+                bool notLastElement = i < 7;
+                string propertyName = notLastElement ? "Item" + (i + 1) : "Rest";
+                object itemValue = getValue(valueType, propertyName, value);
+                string formattedValue = notLastElement ? FormatValue(itemValue) : FormatTuple(itemValue, false, getValue);
+                sb.Append(formattedValue);
+            }
+            if (printParentheses)
+                sb.Append(")");
+
+            return sb.ToString();
+        }
+
         private static string FormatString(string s)
         {
             return s == string.Empty
@@ -224,7 +290,6 @@ namespace NUnit.Framework.Constraints
 
         private static string FormatDouble(double d)
         {
-
             if (double.IsNaN(d) || double.IsInfinity(d))
                 return d.ToString();
             else
@@ -263,21 +328,19 @@ namespace NUnit.Framework.Constraints
             return dt.ToString(Fmt_DateTime, CultureInfo.InvariantCulture);
         }
 
-#if !NETCF
-		private static string FormatDateTimeOffset(DateTimeOffset dto)
+        private static string FormatDateTimeOffset(DateTimeOffset dto)
         {
             return dto.ToString(Fmt_DateTimeOffset, CultureInfo.InvariantCulture);
         }
-#endif
 
-		/// <summary>
-		/// Returns the representation of a type as used in NUnitLite.
-		/// This is the same as Type.ToString() except for arrays,
-		/// which are displayed with their declared sizes.
-		/// </summary>
-		/// <param name="obj"></param>
-		/// <returns></returns>
-		public static string GetTypeRepresentation(object obj)
+        /// <summary>
+        /// Returns the representation of a type as used in NUnitLite.
+        /// This is the same as Type.ToString() except for arrays,
+        /// which are displayed with their declared sizes.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public static string GetTypeRepresentation(object obj)
         {
             Array array = obj as Array;
             if (array == null)
@@ -305,6 +368,7 @@ namespace NUnit.Framework.Constraints
 
             return string.Format("<{0}>", sb.ToString());
         }
+
         /// <summary>
         /// Converts any control characters in a string 
         /// to their escaped representation.
@@ -374,6 +438,38 @@ namespace NUnit.Framework.Constraints
         }
 
         /// <summary>
+        /// Converts any null characters in a string 
+        /// to their escaped representation.
+        /// </summary>
+        /// <param name="s">The string to be converted</param>
+        /// <returns>The converted string</returns>
+        public static string EscapeNullCharacters(string s)
+        {
+            if (s != null)
+            {
+                StringBuilder sb = new StringBuilder();
+
+                foreach (char c in s)
+                {
+                    switch (c)
+                    {
+                        case '\0':
+                            sb.Append("\\0");
+                            break;
+
+                        default:
+                            sb.Append(c);
+                            break;
+                    }
+                }
+
+                s = sb.ToString();
+            }
+
+            return s;
+        }
+
+        /// <summary>
         /// Return the a string representation for a set of indices into an array
         /// </summary>
         /// <param name="indices">Array of indices for which a string is needed</param>
@@ -404,7 +500,7 @@ namespace NUnit.Framework.Constraints
             int rank = array == null ? 1 : array.Rank;
             int[] result = new int[rank];
 
-            for (int r = rank; --r > 0; )
+            for (int r = rank; --r > 0;)
             {
                 int l = array.GetLength(r);
                 result[r] = (int)index % l;

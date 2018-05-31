@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2007 Charlie Poole
+// Copyright (c) 2007 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -38,8 +38,8 @@ namespace NUnit.Framework.Assertions
         public void NotEqualFails()
         {
             var expectedMessage =
-                "  Expected: not equal to 5" + Env.NewLine +
-                "  But was:  5" + Env.NewLine;
+                "  Expected: not equal to 5" + Environment.NewLine +
+                "  But was:  5" + Environment.NewLine;
             var ex = Assert.Throws<AssertionException>(() => Assert.AreNotEqual( 5, 5 ));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
@@ -54,8 +54,8 @@ namespace NUnit.Framework.Assertions
         public void NullEqualsNull()
         {
             var expectedMessage =
-                "  Expected: not equal to null" + Env.NewLine +
-                "  But was:  null" + Env.NewLine;
+                "  Expected: not equal to null" + Environment.NewLine +
+                "  But was:  null" + Environment.NewLine;
             var ex = Assert.Throws<AssertionException>(() => Assert.AreNotEqual( null, null ));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }
@@ -70,8 +70,8 @@ namespace NUnit.Framework.Assertions
         public void ArraysNotEqualFails()
         {
             var expectedMessage =
-                "  Expected: not equal to < 1, 2, 3 >" + Env.NewLine +
-                "  But was:  < 1, 2, 3 >" + Env.NewLine;
+                "  Expected: not equal to < 1, 2, 3 >" + Environment.NewLine +
+                "  But was:  < 1, 2, 3 >" + Environment.NewLine;
             var ex = Assert.Throws<AssertionException>(() => Assert.AreNotEqual( new object[] { 1, 2, 3 }, new object[] { 1, 2, 3 } ));
             Assert.That(ex.Message, Is.EqualTo(expectedMessage));
         }

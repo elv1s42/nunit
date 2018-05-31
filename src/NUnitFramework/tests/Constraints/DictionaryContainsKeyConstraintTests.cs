@@ -1,5 +1,5 @@
-﻿// ***********************************************************************
-// Copyright (c) 2015 Charlie Poole
+// ***********************************************************************
+// Copyright (c) 2015 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -21,13 +21,14 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // ***********************************************************************
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 
 using NUnit.Framework.Constraints;
 using NUnit.Framework.Internal;
 
-namespace NUnit.Framework.Tests.Constraints
+namespace NUnit.Framework.Constraints
 {
     [TestFixture]
     public class DictionaryContainsKeyConstraintTests
@@ -39,7 +40,19 @@ namespace NUnit.Framework.Tests.Constraints
 
             Assert.That(dictionary, new DictionaryContainsKeyConstraint("Hello"));
         }
+        [Test]
+        public void SucceedsWhenKeyIsPresentUsingContainKey()
+        {
+            var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hola", "Mundo" } };
+            Assert.That(dictionary, Does.ContainKey("Hola"));
+        }
 
+        [Test]
+        public void SucceedsWhenKeyIsNotPresentUsingContainKey()
+        {
+            var dictionary = new Dictionary<string, string> { { "Hello", "World" }, { "Hola", "Mundo" } };
+            Assert.That(dictionary, Does.Not.ContainKey("NotKey"));
+        }
         [Test]
         public void FailsWhenKeyIsMissing()
         {
@@ -61,7 +74,7 @@ namespace NUnit.Framework.Tests.Constraints
             Assert.That(act, Throws.ArgumentException.With.Message.Contains("IDictionary"));
         }
 
-#if !SILVERLIGHT && !PORTABLE
+#if !NETCOREAPP1_1
         [Test]
         public void WorksWithNonGenericDictionary()
         {
@@ -86,6 +99,20 @@ namespace NUnit.Framework.Tests.Constraints
 
             Assert.That(dictionary,
                 new DictionaryContainsKeyConstraint("HELLO").Using<string>((x, y) => StringUtil.Compare(x, y, true)));
+        }
+
+        [Test, Explicit("Demonstrates issue #2837")]
+        public void SucceedsWhenKeyIsPresentWhenDictionaryUsingCustomComparer()
+        {
+            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { { "Hello", "World" }, { "Hola", "Mundo" } };
+
+            Assert.That(dictionary, new DictionaryContainsKeyConstraint("hello"));
+        }
+        [Test, Explicit("Demonstrates issue #2837")]
+        public void SucceedsWhenKeyIsPresentUsingContainKeyWhenDictionaryUsingCustomComparer()
+        {
+            var dictionary = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { { "Hello", "World" }, { "Hola", "Mundo" } };
+            Assert.That(dictionary, Does.ContainKey("hola"));
         }
     }
 }

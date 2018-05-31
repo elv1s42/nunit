@@ -1,5 +1,5 @@
 // ***********************************************************************
-// Copyright (c) 2008-2015 Charlie Poole
+// Copyright (c) 2008-2018 Charlie Poole, Rob Prouse
 //
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -25,7 +25,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using NUnit.Framework.Compatibility;
+using NUnit.Compatibility;
 using NUnit.Framework.Interfaces;
 using NUnit.Framework.Internal;
 using NUnit.Framework.Internal.Builders;
@@ -39,8 +39,7 @@ namespace NUnit.Framework
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
     public class TestCaseSourceAttribute : NUnitAttribute, ITestBuilder, IImplyFixture
     {
-
-        private NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
+        private readonly NUnitTestCaseBuilder _builder = new NUnitTestCaseBuilder();
 
         #region Constructors
 
@@ -78,6 +77,17 @@ namespace NUnit.Framework
         }
 
         /// <summary>
+        /// Construct with a name
+        /// </summary>
+        /// <param name="sourceName">The name of a static method, property or field that will provide data.</param>
+        /// <param name="methodParams">A set of parameters passed to the method, works only if the Source Name is a method. 
+        ///                     If the source name is a field or property has no effect.</param>
+        public TestCaseSourceAttribute(string sourceName, object[] methodParams)
+        {
+            this.MethodParams = methodParams;
+            this.SourceName = sourceName;
+        }
+        /// <summary>
         /// Construct with a Type
         /// </summary>
         /// <param name="sourceType">The type that will provide data</param>
@@ -93,16 +103,16 @@ namespace NUnit.Framework
         /// A set of parameters passed to the method, works only if the Source Name is a method. 
         /// If the source name is a field or property has no effect.
         /// </summary>
-        public object[] MethodParams { get; private set; }
+        public object[] MethodParams { get; }
         /// <summary>
         /// The name of a the method, property or fiend to be used as a source
         /// </summary>
-        public string SourceName { get; private set; }
+        public string SourceName { get; }
 
         /// <summary>
         /// A Type to be used as a source
         /// </summary>
-        public Type SourceType { get; private set; }
+        public Type SourceType { get; }
 
         /// <summary>
         /// Gets or sets the category associated with every fixture created from
@@ -115,35 +125,43 @@ namespace NUnit.Framework
         #region ITestBuilder Members
 
         /// <summary>
-        /// Construct one or more TestMethods from a given MethodInfo,
-        /// using available parameter data.
+        /// Builds any number of tests from the specified method and context.
         /// </summary>
-        /// <param name="method">The IMethod for which tests are to be constructed.</param>
-        /// <param name="suite">The suite to which the tests will be added.</param>
-        /// <returns>One or more TestMethods</returns>
-        public IEnumerable<TestMethod> BuildFrom(IMethodInfo method, Test suite)
+        /// <param name="method">The method to be used as a test.</param>
+        /// <param name="suite">The parent to which the test will be added.</param>
+        public IEnumerable<TestMethod> BuildFrom(FixtureMethod method, Test suite)
         {
+            int count = 0;
+
             foreach (TestCaseParameters parms in GetTestCasesFor(method))
+            {
+                count++;
                 yield return _builder.BuildTestMethod(method, suite, parms);
+            }
+
+            // If count > 0, error messages will be shown for each case
+            // but if it's 0, we need to add an extra "test" to show the message.
+            if (count == 0 && method.Method.GetParameters().Length == 0)
+            {
+                var parms = new TestCaseParameters();
+                parms.RunState = RunState.NotRunnable;
+                parms.Properties.Set(PropertyNames.SkipReason, "TestCaseSourceAttribute may not be used on a method without parameters");
+                    
+                yield return _builder.BuildTestMethod(method, suite, parms);
+            }
         }
 
         #endregion
 
         #region Helper Methods
 
-        /// <summary>
-        /// Returns a set of ITestCaseDataItems for use as arguments
-        /// to a parameterized test method.
-        /// </summary>
-        /// <param name="method">The method for which data is needed.</param>
-        /// <returns></returns>
-        private IEnumerable<ITestCaseData> GetTestCasesFor(IMethodInfo method)
+        private IEnumerable<ITestCaseData> GetTestCasesFor(FixtureMethod method)
         {
             List<ITestCaseData> data = new List<ITestCaseData>();
 
             try
             {
-                IEnumerable source = GetTestCaseSource(method);
+                IEnumerable source = GetTestCaseSource(method.FixtureType);
 
                 if (source != null)
                 {
@@ -162,63 +180,29 @@ namespace NUnit.Framework
 
                         if (parms == null)
                         {
+                            object[] args = null;
+
                             // 3. An array was passed, it may be an object[]
                             //    or possibly some other kind of array, which
                             //    TestCaseSource can accept.
-                            var args = item as object[];
-                            if (args == null && item is Array)
+                            var array = item as Array;
+                            if (array != null)
                             {
-                                Array array = item as Array;
-#if NETCF
-                                bool netcfOpenType = method.IsGenericMethodDefinition;
-#else
-                                bool netcfOpenType = false;
-#endif
-                                int numParameters = netcfOpenType ? array.Length : method.GetParameters().Length;
-                                if (array != null && array.Rank == 1 && array.Length == numParameters)
+                                // If array has the same number of elements as parameters
+                                // and it does not fit exactly into single existing parameter
+                                // we believe that this array contains arguments, not is a bare
+                                // argument itself.
+                                var parameters = method.Method.GetParameters();
+                                var argsNeeded = parameters.Length;
+                                if (argsNeeded > 0 && argsNeeded == array.Length && parameters[0].ParameterType != array.GetType())
                                 {
-                                    // Array is something like int[] - convert it to
-                                    // an object[] for use as the argument array.
                                     args = new object[array.Length];
-                                    for (int i = 0; i < array.Length; i++)
+                                    for (var i = 0; i < array.Length; i++)
                                         args[i] = array.GetValue(i);
                                 }
                             }
 
-                            // Check again if we have an object[]
-                            if (args != null)
-                            {
-#if NETCF
-                                if (method.IsGenericMethodDefinition)
-                                {
-                                    var mi = method.MakeGenericMethodEx(args);
-                                    if (mi == null)
-                                        throw new NotSupportedException("Cannot determine generic Type");
-                                    method = mi;
-                                }
-#endif
-
-                                var parameters = method.GetParameters();
-                                var argsNeeded = parameters.Length;
-                                var argsProvided = args.Length;
-               
-                                // If only one argument is needed, our array may actually
-                                // be the bare argument. If it is, we should wrap it in
-                                // an outer object[] representing the list of arguments.
-                                if (argsNeeded == 1)
-                                {
-                                    var singleParmType = parameters[0].ParameterType;
-                                    
-                                    if (argsProvided == 0 || typeof(object[]).IsAssignableFrom(singleParmType))
-                                    {
-                                        if (argsProvided > 1 || singleParmType.IsAssignableFrom(args.GetType()))
-                                        {
-                                            args = new object[] { item };
-                                        }
-                                    }
-                                }
-                            }
-                            else // It may be a scalar or a multi-dimensioned array. Wrap it in object[]
+                            if (args == null)
                             {
                                 args = new object[] { item };
                             }
@@ -233,6 +217,11 @@ namespace NUnit.Framework
                         data.Add(parms);
                     }
                 }
+                else
+                {
+                    data.Clear();
+                    data.Add(new TestCaseParameters(new Exception("The test case source could not be found.")));
+                }
             }
             catch (Exception ex)
             {
@@ -243,9 +232,9 @@ namespace NUnit.Framework
             return data;
         }
 
-        private IEnumerable GetTestCaseSource(IMethodInfo method)
+        private IEnumerable GetTestCaseSource(Type type)
         {
-            Type sourceType = SourceType ?? method.TypeInfo.Type;
+            Type sourceType = SourceType ?? type;
 
             // Handle Type implementing IEnumerable separately
             if (SourceName == null)
